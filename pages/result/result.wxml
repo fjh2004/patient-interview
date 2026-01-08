@@ -1,0 +1,106 @@
+<!-- 结果预览页面 - 问卷提交后展示 -->
+<view class="page-container">
+  <scroll-view class="scroll-container" scroll-y>
+    <!-- 顶部标题 -->
+    <view class="header-section">
+      <view class="success-icon">✓</view>
+      <text class="header-title">问卷提交成功</text>
+      <text class="header-subtitle">感谢您的认真填写</text>
+    </view>
+
+    <!-- 填写摘要卡片 -->
+    <view class="summary-card">
+      <view class="card-header">
+        <text class="card-title">填写摘要</text>
+      </view>
+
+      <view class="summary-item">
+        <text class="summary-label">姓名：</text>
+        <text class="summary-value">{{userInfo.name || '未填写'}}</text>
+      </view>
+
+      <view class="summary-item">
+        <text class="summary-label">年龄：</text>
+        <text class="summary-value">{{userInfo.age || '未填写'}}</text>
+      </view>
+
+      <view class="summary-item">
+        <text class="summary-label">性别：</text>
+        <text class="summary-value">{{userInfo.gender || '未填写'}}</text>
+      </view>
+
+      <view class="summary-item" wx:if="{{userInfo.examNo}}">
+        <text class="summary-label">手机号：</text>
+        <text class="summary-value">{{userInfo.examNo}}</text>
+      </view>
+
+      <!-- 健康信息摘要 -->
+      <view class="health-summary">
+        <text class="health-title">健康信息摘要</text>
+        <view class="health-items">
+          <view
+            wx:for="{{healthHighlights}}"
+            wx:key="index"
+            class="health-item"
+          >
+            <text class="health-dot">•</text>
+            <text class="health-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 通用体检建议 -->
+      <view class="advice-section" wx:if="{{generalAdvice}}">
+        <text class="advice-title">通用体检建议</text>
+        <text class="advice-content">{{generalAdvice}}</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮区域 -->
+    <view class="action-section">
+      <button class="secondary-btn" bindtap="viewDetails">
+        查看详细答案
+      </button>
+
+      <button class="primary-btn" bindtap="restartQuestionnaire">
+        重新填写问卷
+      </button>
+    </view>
+
+    <!-- 温馨提示 -->
+    <view class="tip-section">
+      <text class="tip-text">温馨提示：问卷结果仅供参考，具体诊断请咨询专业医生</text>
+    </view>
+  </scroll-view>
+
+  <!-- 详细答案模态框 -->
+  <view 
+    class="modal-mask {{isDetailModalOpen ? 'show' : ''}}" 
+    wx:if="{{isDetailModalOpen}}"
+    bindtap="closeDetailModal"
+  >
+    <view class="detail-modal" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">详细填写内容</text>
+        <view class="modal-close" bindtap="closeDetailModal">×</view>
+      </view>
+      
+      <scroll-view class="modal-content" scroll-y>
+        <view
+          wx:for="{{detailedAnswers}}"
+          wx:key="index"
+          class="answer-item"
+        >
+          <view class="question-header">
+            <text class="question-number">第{{item.id}}题</text>
+            <text class="question-content">{{item.content}}</text>
+          </view>
+          <view class="answer-content">
+            <text class="answer-label">您的回答：</text>
+            <text class="answer-value">{{item.answer || '未填写'}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

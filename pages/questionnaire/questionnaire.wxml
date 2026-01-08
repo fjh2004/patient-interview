@@ -1,0 +1,195 @@
+<!-- 问卷填写页面 - 核心交互界面 -->
+<wxs module="arrayUtils" src="./index.wxs"></wxs>
+<view class="page-container">
+  <!-- 顶部进度条 -->
+  <view class="progress-section">
+    <view class="progress-text">已完成 {{progress}}/{{totalQuestions}} 题 ({{progressPercent}}%)</view>
+    <view class="progress-bar">
+      <view class="progress-fill progress-{{progressStatus}}" style="width: {{progressPercent}}"></view>
+    </view>
+  </view>
+
+    <!-- 主体内容区 -->
+    <view class="content-section">
+      <!-- 当前问题卡片 -->
+      <view class="question-card" wx:if="{{currentQuestion}}">
+        <view class="question-header">
+          <text class="question-number">第{{currentQuestion.id}}题</text>
+          <text class="question-required" wx:if="{{currentQuestion.required}}">*必填</text>
+        </view>
+
+
+        <view class="question-content">
+          <text class="question-text">{{currentQuestion.content}}</text>
+          <text class="question-type-badge" wx:if="{{currentQuestion.type === 'checkbox'}}">（可多选）</text>
+        </view>
+
+
+      <!-- 输入型题目 -->
+      <view wx:if="{{currentQuestion.type === 'input_single' || currentQuestion.type === 'input_number' || currentQuestion.type === 'input_multi'}}" class="input-section">
+        <input
+          wx:if="{{currentQuestion.type === 'input_single' || currentQuestion.type === 'input_number'}}"
+          class="input-field"
+          value="{{currentAnswer}}"
+          placeholder="{{currentQuestion.placeholder}}"
+          placeholder-class="placeholder-text"
+          bindinput="onInputChange"
+          bindblur="onInputBlur"
+          type="{{currentQuestion.type === 'input_number' ? 'number' : 'text'}}"
+        />
+
+        <textarea
+          wx:if="{{currentQuestion.type === 'input_multi'}}"
+          class="textarea-field"
+          value="{{currentAnswer}}"
+          placeholder="{{currentQuestion.placeholder}}"
+          placeholder-class="placeholder-text"
+          bindinput="onTextareaChange"
+          bindblur="onInputBlur"
+          maxlength="200"
+          auto-height
+        />
+      </view>
+
+      <!-- 单选题目 -->
+      <view wx:if="{{currentQuestion.type === 'radio'}}" class="options-section">
+        <view
+          wx:for="{{currentQuestion.options}}"
+          wx:key="index"
+          class="option-item {{currentAnswer === item ? 'selected' : ''}}"
+          bindtap="onOptionSelect"
+          data-value="{{item}}"
+        >
+          <text class="option-text">{{item}}</text>
+          <view class="option-check" wx:if="{{currentAnswer === item}}">✓</view>
+        </view>
+      </view>
+
+      <!-- 多选题目 -->
+      <view wx:if="{{currentQuestion.type === 'checkbox'}}" class="options-section">
+        <view
+          wx:for="{{currentQuestion.options}}"
+          wx:for-index="optIndex"
+          wx:for-item="optItem"
+          wx:key="optIndex"
+          class="option-item {{arrayUtils.includes(currentAnswer, optItem) ? 'selected' : ''}}"
+          bindtap="onMultiOptionSelect"
+          data-value="{{optItem}}"
+        >
+          <text class="option-text">{{optItem}}</text>
+          <view class="option-check" wx:if="{{arrayUtils.includes(currentAnswer, optItem)}}">✓</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载状态 -->
+    <view wx:if="{{isLoading}}" class="loading-section">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 错误提示 -->
+    <view wx:if="{{errorMessage}}" class="error-section">
+      <text class="error-text">{{errorMessage}}</text>
+    </view>
+  </view>
+
+  <!-- 操作按钮区 -->
+  <view class="action-section">
+    <button 
+      class="secondary-btn" 
+      bindtap="onPrevQuestion"
+      disabled="{{currentQuestionIndex === 0}}"
+    >
+      上一题
+    </button>
+    
+    <button
+      class="primary-btn"
+      bindtap="onNextQuestion"
+      disabled="{{isSubmitting}}"
+    >
+      {{isLastQuestion ? '提交问卷' : '下一题'}}
+    </button>
+  </view>
+
+  <!-- AI助手悬浮入口 -->
+  <view
+    class="ai-assistant"
+    wx:if="{{!isAIPanelOpen}}"
+    style="right: {{aiIconRight}}rpx; bottom: {{aiIconBottom}}rpx;"
+    bindtouchstart="handleTouchStart"
+    bindtouchmove="handleTouchMove"
+    bindtouchend="handleTouchEnd"
+    catchtap="handleIconClick"
+  >
+    <view class="ai-bubble" wx:if="{{aiBubbleMessage}}">
+      <text>{{aiBubbleMessage}}</text>
+    </view>
+    <view class="ai-icon">
+      <image class="ai-icon-image" src="/images/ai-icon.png" mode="aspectFit"></image>
+    </view>
+  </view>
+
+  <!-- AI助手面板 -->
+  <view 
+    class="ai-panel {{isAIPanelOpen ? 'open' : ''}}" 
+    wx:if="{{isAIPanelOpen}}"
+  >
+    <view class="ai-panel-header">
+      <text class="ai-panel-title">问卷填写助手</text>
+      <view class="ai-panel-close" bindtap="toggleAIPanel">×</view>
+    </view>
+    
+    <view class="ai-panel-content">
+      <view class="ai-welcome">
+        <text>我是问卷填写助手，有什么问题尽管问我哦～</text>
+      </view>
+      
+      <!-- 快捷问题按钮 -->
+      <view class="quick-questions" wx:if="{{currentQuestion}}">
+        <text class="quick-title">快捷提问：</text>
+        <view class="quick-buttons">
+          <button 
+            wx:for="{{quickQuestions}}" 
+            wx:key="index"
+            class="quick-btn"
+            bindtap="onQuickQuestion"
+            data-question="{{item}}"
+          >
+            {{item}}
+          </button>
+        </view>
+      </view>
+      
+      <!-- AI对话区域 -->
+      <view class="ai-dialog" wx:if="{{aiDialog.length > 0}}">
+        <view 
+          wx:for="{{aiDialog}}" 
+          wx:key="index"
+          class="dialog-item {{item.role}}"
+        >
+          <text class="dialog-content">{{item.content}}</text>
+        </view>
+      </view>
+      
+      <!-- 输入提问区域 -->
+      <view class="ai-input-section">
+        <input 
+          class="ai-input-field"
+          value="{{aiQuestion}}"
+          placeholder="向AI提问..."
+          bindinput="onAIQuestionInput"
+        />
+        <button class="ai-send-btn" bindtap="sendAIQuestion">发送</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 遮罩层 -->
+  <view 
+    class="mask {{isAIPanelOpen ? 'show' : ''}}" 
+    wx:if="{{isAIPanelOpen}}"
+    bindtap="toggleAIPanel"
+  ></view>
+</view>

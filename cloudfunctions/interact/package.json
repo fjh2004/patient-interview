@@ -1,0 +1,38 @@
+{
+  "name": "interact",
+  "version": "1.0.0",
+  "description": "糖尿病患者体检前问卷系统 - 核心交互云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "微信小程序",
+    "云开发",
+    "糖尿病",
+    "问卷",
+    "医疗",
+    "LLM",
+    "AI交互"
+  ],
+  "author": "智能医疗问卷系统",
+  "license": "MIT",
+  "dependencies": {
+    "wx-server-sdk": "^2.6.3",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {},
+  "cloudfunction-config": {
+    "memorySize": 256,
+    "timeout": 60,
+    "runtime": "Nodejs16.13",
+    "vpc": {
+      "subnetId": "",
+      "vpcId": ""
+    },
+    "envVariables": {
+      "ZHIPU_API_KEY": "your-zhipu-api-key",
+      "ZHIPU_API_SECRET": "your-zhipu-api-secret"
+    }
+  }
+}

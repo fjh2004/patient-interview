@@ -1,0 +1,171 @@
+/* 填写说明页面样式 */
+
+.page-container {
+  min-height: 100vh;
+  background-color: #F5F5F5;
+}
+
+/* 头部区域 */
+.header-section {
+  background-color: #FFFFFF;
+  padding: 48rpx 16rpx 32rpx;
+  border-bottom: 1rpx solid #E5E5E5;
+}
+
+.page-title {
+  font-size: 34rpx;  /* 增大20% */
+  font-weight: bold;
+  color: #333333;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.page-subtitle {
+  font-size: 29rpx;  /* 增大20% */
+  color: #666666;
+  line-height: 33.6rpx;
+}
+
+/* 内容区域 */
+.content-section {
+  height: calc(100vh - 200rpx);
+  padding: 32rpx 12rpx;
+  box-sizing: border-box;
+}
+
+/* 说明卡片 */
+.explain-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.card-header {
+  background-color: #F8F9FA;
+  padding: 20rpx 12rpx;
+  border-bottom: 1rpx solid #E5E5E5;
+}
+
+.card-title {
+  font-size: 31rpx;  /* 增大20% */
+  font-weight: bold;
+  color: #333333;
+}
+
+.card-content {
+  padding: 20rpx 12rpx;
+  box-sizing: border-box;
+}
+
+.explain-item {
+  margin-bottom: 24rpx;
+}
+
+.explain-item:last-child {
+  margin-bottom: 0;
+}
+
+.item-title {
+  font-size: 29rpx;  /* 增大20% */
+  font-weight: bold;
+  color: #4CAF50;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.item-content {
+  font-size: 26rpx;  /* 增大20% */
+  color: #666666;
+  line-height: 30.8rpx;
+}
+
+/* 免责声明卡片 */
+.disclaimer-card {
+  background-color: #FFF3E0;
+  border: 1rpx solid #FFB74D;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.disclaimer-card .card-header {
+  background-color: #FFE0B2;
+  border-bottom-color: #FFB74D;
+}
+
+.disclaimer-card .card-title {
+  color: #E65100;
+}
+
+.disclaimer-text {
+  font-size: 26rpx;  /* 增大20% */
+  color: #E65100;
+  line-height: 30.8rpx;
+  text-align: justify;
+}
+
+/* 开始按钮区域 */
+.start-button-section {
+  margin-top: 32rpx;
+  margin-bottom: 80rpx;
+  padding: 0 12rpx;
+  box-sizing: border-box;
+}
+
+.primary-btn {
+  background-color: #4CAF50;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 44rpx;
+  height: 88rpx;
+  font-size: 29rpx;  /* 增大20% */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.primary-btn:active {
+  background-color: #45a049;
+}
+
+/* 响应式适配 */
+@media (max-width: 320px) {
+  .page-title {
+    font-size: 30rpx;
+  }
+
+  .page-subtitle {
+    font-size: 26rpx;
+  }
+
+  .item-title {
+    font-size: 26rpx;
+  }
+
+  .item-content {
+    font-size: 24rpx;
+  }
+}
+
+@media (min-width: 414px) {
+  .page-title {
+    font-size: 36rpx;
+  }
+
+  .page-subtitle {
+    font-size: 31rpx;
+  }
+
+  .item-title {
+    font-size: 31rpx;
+  }
+
+  .item-content {
+    font-size: 29rpx;
+  }
+}

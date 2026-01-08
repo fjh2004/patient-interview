@@ -1,0 +1,147 @@
+<!-- 填写说明页面 - 问卷填写指南和帮助信息 -->
+<view class="page-container">
+  <!-- 页面标题 -->
+  <view class="header-section">
+    <text class="page-title">问卷填写说明</text>
+    <text class="page-subtitle">请仔细阅读以下说明，以便准确填写问卷</text>
+  </view>
+
+  <!-- 说明内容 -->
+  <scroll-view class="content-section" scroll-y>
+    <!-- 基本信息说明 -->
+    <view class="explain-card">
+      <view class="card-header">
+        <text class="card-title">📝 基本信息填写</text>
+      </view>
+      <view class="card-content">
+        <view class="explain-item">
+          <text class="item-title">姓名（必填）</text>
+          <text class="item-content">请填写真实姓名，便于医生识别和联系</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">手机号（选填）</text>
+          <text class="item-content">如有手机号请填写，无则留空</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">年龄（必填）</text>
+          <text class="item-content">请输入实际年龄，数字格式（如：56）</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 题型说明 -->
+    <view class="explain-card">
+      <view class="card-header">
+        <text class="card-title">🔘 题型说明</text>
+      </view>
+      <view class="card-content">
+        <view class="explain-item">
+          <text class="item-title">单选题</text>
+          <text class="item-content">只能选择一个选项，点击选项即可选择</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">多选题</text>
+          <text class="item-content">可以选择多个选项，可重复点击取消选择</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">填空题</text>
+          <text class="item-content">请在输入框中直接输入文字</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 填写技巧 -->
+    <view class="explain-card">
+      <view class="card-header">
+        <text class="card-title">💡 填写技巧</text>
+      </view>
+      <view class="card-content">
+        <view class="explain-item">
+          <text class="item-title">如实填写</text>
+          <text class="item-content">请根据实际情况填写，确保信息准确</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">仔细阅读</text>
+          <text class="item-content">每个问题都有详细说明，请仔细阅读后再作答</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">逻辑一致</text>
+          <text class="item-content">注意前后问题的逻辑关系，保持答案一致性</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">必填项标识</text>
+          <text class="item-content">带 * 号的问题为必填项，必须完成</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI助手说明 -->
+    <view class="explain-card">
+      <view class="card-header">
+        <text class="card-title">🤖 AI助手功能</text>
+      </view>
+      <view class="card-content">
+        <view class="explain-item">
+          <text class="item-title">智能提示</text>
+          <text class="item-content">填写错误或逻辑矛盾时，AI助手会及时提醒</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">术语解释</text>
+          <text class="item-content">点击医学术语可获得通俗易懂的解释</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">实时问答</text>
+          <text class="item-content">可随时向AI提问，获取填写帮助</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">填写鼓励</text>
+          <text class="item-content">长时间无操作时，AI会给予鼓励提示</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 注意事项 -->
+    <view class="explain-card">
+      <view class="card-header">
+        <text class="card-title">⚠️ 注意事项</text>
+      </view>
+      <view class="card-content">
+        <view class="explain-item">
+          <text class="item-title">数据安全</text>
+          <text class="item-content">您的填写数据将严格保密，仅用于医疗评估</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">断点续填</text>
+          <text class="item-content">退出后重新进入可继续填写，数据自动保存</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">网络要求</text>
+          <text class="item-content">建议在稳定的网络环境下填写</text>
+        </view>
+        <view class="explain-item">
+          <text class="item-title">时间预估</text>
+          <text class="item-content">完整填写约需10-15分钟</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 免责声明 -->
+    <view class="disclaimer-card">
+      <view class="card-header">
+        <text class="card-title">📋 免责声明</text>
+      </view>
+      <view class="card-content">
+        <text class="disclaimer-text">
+          本问卷结果仅供参考，不能替代专业医疗诊断。如有健康问题，请及时咨询专业医生。AI助手提供的信息仅为辅助填写，不构成医疗建议。
+        </text>
+      </view>
+    </view>
+
+    <!-- 开始填写按钮 -->
+    <view class="start-button-section">
+      <button class="primary-btn" bindtap="startQuestionnaire">
+        开始填写问卷
+      </button>
+    </view>
+  </scroll-view>
+</view>

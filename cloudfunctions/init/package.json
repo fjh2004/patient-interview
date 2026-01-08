@@ -1,0 +1,31 @@
+{
+  "name": "init",
+  "version": "1.0.0",
+  "description": "糖尿病患者体检前问卷系统 - 初始化云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "微信小程序",
+    "云开发",
+    "糖尿病",
+    "问卷",
+    "医疗"
+  ],
+  "author": "智能医疗问卷系统",
+  "license": "MIT",
+  "dependencies": {
+    "wx-server-sdk": "^2.6.3"
+  },
+  "devDependencies": {},
+  "cloudfunction-config": {
+    "memorySize": 128,
+    "timeout": 20,
+    "runtime": "Nodejs16.13",
+    "vpc": {
+      "subnetId": "",
+      "vpcId": ""
+    }
+  }
+}

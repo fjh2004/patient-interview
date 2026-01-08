@@ -1,0 +1,16 @@
+// WXS 模块 - 处理数组查找
+var includes = function(arr, item) {
+  if (!arr || !arr.length) {
+    return false;
+  }
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] === item) {
+      return true;
+    }
+  }
+  return false;
+};
+
+module.exports = {
+  includes: includes
+};

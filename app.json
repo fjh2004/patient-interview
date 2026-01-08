@@ -1,0 +1,41 @@
+{
+  "pages": [
+    "pages/questionnaire/questionnaire",
+    "pages/result/result",
+    "pages/explain/explain"
+  ],
+  "window": {
+    "navigationBarTitleText": "健康问卷",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFFFFF",
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#4CAF50",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/questionnaire/questionnaire",
+        "text": "问卷填写",
+        "iconPath": "images/tab-questionnaire.png",
+        "selectedIconPath": "images/tab-questionnaire-active.png"
+      },
+      {
+        "pagePath": "pages/explain/explain",
+        "text": "填写说明",
+        "iconPath": "images/tab-explain.png",
+        "selectedIconPath": "images/tab-explain-active.png"
+      }
+    ]
+  },
+  "networkTimeout": {
+    "request": 10000,
+    "downloadFile": 10000
+  },
+  "debug": true,
+  "cloud": true
+}

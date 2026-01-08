@@ -1,0 +1,22 @@
+# 微信开发者工具本地配置
+.project.config.json
+.sitemap.json
+.DS_Store
+.local
+.idea/
+.vscode/
+
+# 小程序依赖包
+miniprogram_npm/
+node_modules/
+
+# 云函数依赖（每个云函数目录下的node_modules）
+cloudfunctions/**/node_modules/
+
+# 本地日志/缓存
+logs/
+temp/
+
+# 敏感信息（如果有）
+secret.js
+.env
