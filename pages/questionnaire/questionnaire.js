@@ -11,13 +11,13 @@ const QUESTIONNAIRE_TEMPLATE = {
     {"id":2,"content":"手机号","type":"input_single","placeholder":"无则不填","required":false,"rule":""},
     {"id":3,"content":"年龄","type":"input_number","placeholder":"请输入实际年龄，如：56","required":true,"rule":""},
     {"id":4,"content":"性别","type":"radio","options":["A. 男性","B. 女性"],"required":true,"rule":"关联32/33题，仅女性显示"},
-    {"id":5,"content":"受教育程度","type":"radio","options":["A. 未受过教育","B. 小学","C. 初中","D. 高中","E. 大学及以上"],"required":true,"rule":"适配语言表述（低学历用通俗语）"},
+    {"id":5,"content":"您的受教育程度","type":"radio","options":["A. 未受过教育","B. 小学","C. 初中","D. 高中","E. 大学及以上"],"required":true,"rule":"适配语言表述（低学历用通俗语）"},
     {"id":6,"content":"您的父母或兄弟姐妹是否患有以下明确诊断的疾病？","type":"checkbox","options":["A. 高血压","B. 脑卒中","C. 冠心病","D. 外周血管病","E. 糖尿病","F. 肥胖症","G. 慢性肾脏疾病","H. 慢性阻塞性肺病","I. 骨质疏松","J. 肺癌","K. 肝癌","L. 胃癌","M. 食管癌","N. 结直肠癌","O. 乳腺癌","P. 胰腺癌","Q. 宫颈癌","R. 前列腺癌","S. 甲状腺癌","T. 其他疾病","U. 以上皆无"],"required":true,"rule":"与7题逻辑关联（家族史-自身患病一致性）"},
     {"id":7,"content":"您的父亲是否在 55 岁之前或母亲在 65 岁之前患有冠心病？","type":"radio","options":["A. 是","B. 否"],"required":true,"rule":""},
     {"id":8,"content":"您是否患有以下明确诊断的疾病？","type":"checkbox","options":["A. 高血压","B. 脑卒中","C. 冠心病","D. 外周血管病","E. 糖尿病","F. 肥胖症","G. 慢性肾脏疾病","H. 慢性阻塞性肺病","I. 骨质疏松","J. 肺癌","K. 肝癌","L. 胃癌","M. 食管癌","N. 结直肠癌","O. 乳腺癌","P. 胰腺癌","Q. 宫颈癌","R. 前列腺癌","S. 甲状腺癌","T. 其他疾病","U. 以上皆无"],"required":true,"rule":"与5/8题逻辑关联"},
     {"id":9,"content":"您是否长期服用药物或营养素？(连续服用 6 个月以上，平均每日服用一次以上)","type":"checkbox","options":["A. 降压药","B. 降糖药","C. 降脂药","D. 降尿酸药","E. 抗心律失常药","F. 其他","G. 以上皆无"],"required":true,"rule":"与7题逻辑关联（患病-用药一致性）"},
     {"id":10,"content":"您对什么物质过敏？","type":"checkbox","options":["A. 青霉素","B. 磺胺类","C. 链霉素","D. 头孢类","E. 其他","F. 以上皆无"],"required":true,"rule":""},
-    {"id":11,"content":"您是否因疾病进行过手术治疗？(可多选)","type":"checkbox","options":["A. 头颅 (含脑)","B. 胸部 (含肺部)","C. 心脏 (含心脏介入)","D. 胃肠","E. 肝胆","F. 肾脏","G. 其它部位","H. 以上皆无"],"required":true,"rule":""},
+    {"id":11,"content":"您是否因疾病进行过手术治疗？","type":"checkbox","options":["A. 头颅 (含脑)","B. 胸部 (含肺部)","C. 心脏 (含心脏介入)","D. 胃肠","E. 肝胆","F. 肾脏","G. 其它部位","H. 以上皆无"],"required":true,"rule":""},
     {"id":12,"content":"您是否吸烟？","type":"radio","options":["A. 没有","B. 吸烟","C. 已戒烟 1 年以上","D. 被动吸烟 (每周累计 1 天以上)"],"required":true,"rule":""},
     {"id":13,"content":"您是否饮酒？","type":"radio","options":["A. 不喝","B. 偶尔喝","C. 已戒酒 1 年以上","D. 经常喝 (每周大于 2 次)"],"required":true,"rule":""},
     {"id":14,"content":"您每周运动的天数","type":"radio","options":["A. 不到 1 天","B.3 天以内","C.3 天以上"],"required":true,"rule":""},
@@ -67,6 +67,7 @@ Page({
     aiBubbleMessage: '我是问卷填写助手，有疑问请点击我～',
     aiQuestion: '',
     aiDialog: [],
+    isAIThinking: false,  // AI思考状态
     quickQuestions: [
       '这个问题是什么意思？',
       '这个选项该怎么选？',
@@ -540,20 +541,25 @@ Page({
 
   sendAIQuestion: function() {
     if (!this.data.aiQuestion.trim()) return;
-    
+
     const question = this.data.aiQuestion.trim();
-    
+
+    // 设置AI思考状态
+    this.setData({
+      isAIThinking: true
+    });
+
     // 添加到对话记录
     const newDialog = [...this.data.aiDialog, {
       role: 'user',
       content: question
     }];
-    
+
     this.setData({
       aiDialog: newDialog,
       aiQuestion: ''
     });
-    
+
     // 调用云函数获取AI回答
     this.callAIQuestionCloudFunction(question);
     this.updateLastInteractionTime();
@@ -586,6 +592,11 @@ Page({
         aiQuestion: fullQuestion
       },
       success: (res) => {
+        // 关闭思考状态
+        this.setData({
+          isAIThinking: false
+        });
+
         if (res.result.success) {
           const aiAnswer = res.result.aiAnswer;
           const updatedDialog = [...this.data.aiDialog, {
@@ -602,18 +613,27 @@ Page({
       },
       fail: (error) => {
         console.error('AI问答失败：', error);
+        // 关闭思考状态
+        this.setData({
+          isAIThinking: false
+        });
         this.showAIFallback(question);
       }
     });
   },
 
   showAIFallback: function(question) {
+    // 关闭思考状态
+    this.setData({
+      isAIThinking: false
+    });
+
     const fallbackAnswer = LLMFallback.getFallbackResponse('aiQuestion', { question });
     const updatedDialog = [...this.data.aiDialog, {
       role: 'assistant',
       content: fallbackAnswer.aiAnswer
     }];
-    
+
     this.setData({
       aiDialog: updatedDialog
     });
@@ -776,3 +796,6 @@ Page({
     }
   },
 });
+
+// 导出问卷模板供其他页面使用
+module.exports.QUESTIONNAIRE_TEMPLATE = QUESTIONNAIRE_TEMPLATE;

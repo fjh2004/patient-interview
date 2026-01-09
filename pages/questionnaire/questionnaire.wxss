@@ -346,6 +346,8 @@
   box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.1);
   z-index: 2000;
   max-height: 60vh;
+  display: flex;
+  flex-direction: column;
   transition: bottom 0.3s ease;
 }
 
@@ -359,6 +361,7 @@
   align-items: center;
   padding: 32rpx;
   border-bottom: 1rpx solid #E5E5E5;
+  flex-shrink: 0;
 }
 
 .ai-panel-title {
@@ -380,7 +383,7 @@
 
 .ai-panel-content {
   padding: 32rpx;
-  max-height: calc(60vh - 120rpx);
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -457,6 +460,32 @@
 .dialog-content {
   font-size: 29rpx;  /* 增大20% */
   line-height: 33.6rpx;
+}
+
+/* 思考中指示器 */
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.thinking-spinner {
+  width: 32rpx;
+  height: 32rpx;
+  border: 4rpx solid #E0E0E0;
+  border-top: 4rpx solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.thinking-text {
+  font-size: 26rpx;  /* 增大20% */
+  color: #999999;
 }
 
 .ai-input-section {

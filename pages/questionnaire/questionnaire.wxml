@@ -163,19 +163,27 @@
       </view>
       
       <!-- AI对话区域 -->
-      <view class="ai-dialog" wx:if="{{aiDialog.length > 0}}">
-        <view 
-          wx:for="{{aiDialog}}" 
+      <view class="ai-dialog" wx:if="{{aiDialog.length > 0 || isAIThinking}}">
+        <view
+          wx:for="{{aiDialog}}"
           wx:key="index"
           class="dialog-item {{item.role}}"
         >
           <text class="dialog-content">{{item.content}}</text>
         </view>
+
+        <!-- AI思考中提示 -->
+        <view class="dialog-item assistant" wx:if="{{isAIThinking}}">
+          <view class="thinking-indicator">
+            <view class="thinking-spinner"></view>
+            <text class="thinking-text">AI助手思考中...</text>
+          </view>
+        </view>
       </view>
-      
+
       <!-- 输入提问区域 -->
       <view class="ai-input-section">
-        <input 
+        <input
           class="ai-input-field"
           value="{{aiQuestion}}"
           placeholder="向AI提问..."

@@ -79,6 +79,9 @@ Page({
 
   // 处理真实数据
   processRealData: function(answers, questionnaire) {
+    console.log('processRealData - answers:', answers);
+    console.log('processRealData - questionnaire:', questionnaire);
+
     // 提取用户基本信息
     const userInfo = {
       name: answers[1] || '',
@@ -86,6 +89,7 @@ Page({
       gender: answers[4] || '',
       examNo: answers[2] || ''
     };
+    console.log('userInfo:', userInfo);
 
     // 格式化性别显示
     if (userInfo.gender === 'A. 男性') {
@@ -96,8 +100,26 @@ Page({
 
     // 生成详细答案列表
     const detailedAnswers = [];
-    if (questionnaire && questionnaire.questions) {
-      questionnaire.questions.forEach(question => {
+
+    // 如果没有问卷模板，使用前端预制的问卷数据
+    let questions = [];
+    try {
+      if (questionnaire && questionnaire.questions) {
+        questions = questionnaire.questions;
+        console.log('使用传入的问卷模板');
+      } else {
+        // 从问卷页面导入预制数据
+        console.log('使用预制问卷模板');
+        const QuestionnaireData = require('../../pages/questionnaire/questionnaire.js');
+        questions = QuestionnaireData.QUESTIONNAIRE_TEMPLATE.questions;
+        console.log('导入的题目数量:', questions.length);
+      }
+    } catch (error) {
+      console.error('获取问卷模板失败:', error);
+    }
+
+    if (questions && questions.length > 0) {
+      questions.forEach(question => {
         const answer = answers[question.id];
         let formattedAnswer = answer;
 
@@ -114,12 +136,23 @@ Page({
       });
     }
 
+    console.log('detailedAnswers:', detailedAnswers);
+
+    // 先使用本地方法生成健康摘要和建议，确保页面有内容显示
+    const healthHighlights = this.generateHealthSummary(answers);
+    const generalAdvice = this.generateGeneralAdvice(answers);
+
+    console.log('healthHighlights:', healthHighlights);
+    console.log('generalAdvice:', generalAdvice);
+
     this.setData({
       userInfo: userInfo,
-      detailedAnswers: detailedAnswers
+      detailedAnswers: detailedAnswers,
+      healthHighlights: healthHighlights,
+      generalAdvice: generalAdvice
     });
 
-    // 调用AI生成健康信息摘要
+    // 调用AI生成健康信息摘要（异步更新）
     this.generateAIHealthSummary(answers);
   },
 
@@ -203,45 +236,45 @@ Page({
   // 生成健康摘要
   generateHealthSummary: function(answers) {
     const highlights = [];
-    
+
     // 分析关键健康信息
-    if (answers[5] && answers[5].includes('E. 糖尿病')) {
+    if (answers[6] && answers[6].includes('E. 糖尿病')) {
       highlights.push('有糖尿病家族史');
     }
-    
-    if (answers[7] && answers[7].includes('E. 糖尿病')) {
+
+    if (answers[8] && answers[8].includes('E. 糖尿病')) {
       highlights.push('当前有糖尿病诊断');
     } else {
       highlights.push('目前无糖尿病诊断');
     }
-    
-    if (answers[14]) {
-      const diet = answers[14];
+
+    if (answers[15]) {
+      const diet = answers[15];
       if (diet === 'A. 细粮为主') {
         highlights.push('饮食习惯偏向细粮');
       } else if (diet === 'C. 粗粮为主') {
         highlights.push('饮食习惯偏向粗粮');
       }
     }
-    
-    if (answers[13]) {
-      const exercise = answers[13];
+
+    if (answers[14]) {
+      const exercise = answers[14];
       if (exercise === 'C.3 天以上') {
         highlights.push('每周运动3天以上');
       } else if (exercise === 'A. 不到 1 天') {
         highlights.push('运动量较少');
       }
     }
-    
-    if (answers[19]) {
-      const sleep = answers[19];
+
+    if (answers[20]) {
+      const sleep = answers[20];
       if (sleep === 'C.7-9 小时') {
         highlights.push('睡眠质量良好');
       } else if (sleep === 'A.<5 小时') {
         highlights.push('睡眠时间不足');
       }
     }
-    
+
     return highlights;
   },
 
@@ -250,15 +283,15 @@ Page({
     let advice = '建议保持健康生活方式，定期体检。';
 
     // 根据关键信息生成建议
-    if (answers[5] && answers[5].includes('E. 糖尿病')) {
+    if (answers[6] && answers[6].includes('E. 糖尿病')) {
       advice += '由于有糖尿病家族史，建议定期监测血糖。';
     }
 
-    if (answers[13] && answers[13] === 'A. 不到 1 天') {
+    if (answers[14] && answers[14] === 'A. 不到 1 天') {
       advice += '适当增加运动量有助于健康。';
     }
 
-    if (answers[14] && answers[14] === 'A. 细粮为主') {
+    if (answers[15] && answers[15] === 'A. 细粮为主') {
       advice += '建议适当增加粗粮摄入。';
     }
 
