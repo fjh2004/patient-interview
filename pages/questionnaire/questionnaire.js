@@ -69,8 +69,8 @@ Page({
     aiDialog: [],
     isAIThinking: false,  // AI思考状态
     quickQuestions: [
-      '这个问题是什么意思？',
-      '这个选项该怎么选？',
+      '这个问题该怎么选？',
+      '选项都是什么意思？',
       '为什么需要填写这个？',
       '填写时需要注意什么？'
     ],
@@ -379,16 +379,25 @@ Page({
       this.data.answers,
       this.data.questionnaire
     );
-    
+
     // 检查是否有错误
     const hasError = validations.some(v => !v.isValid);
-    
-    if (hasError) {
-      const errorMessages = validations
+
+    // 如果当前题目验证通过，检查所有已填写题目的逻辑一致性
+    let logicErrors = [];
+    if (!hasError) {
+      logicErrors = Validator.validateAllLogic(this.data.answers, this.data.questionnaire);
+    }
+
+    const allErrors = [...validations, ...logicErrors];
+    const allHasError = allErrors.some(v => !v.isValid);
+
+    if (allHasError) {
+      const errorMessages = allErrors
         .filter(v => !v.isValid)
         .map(v => v.message)
         .join('；');
-      
+
       this.setData({
         aiBubbleMessage: errorMessages
       });
@@ -398,7 +407,7 @@ Page({
         aiBubbleMessage: '填写正确，继续加油！'
       });
     }
-    
+
     this.updateLastInteractionTime();
   },
 

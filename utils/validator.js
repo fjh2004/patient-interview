@@ -70,7 +70,7 @@ class Validator {
     return { isValid: true, message: '' };
   }
 
-  // 逻辑一致性校验
+    // 逻辑一致性校验
   static validateLogic(questionId, currentAnswer, allAnswers, questionnaire) {
     const checks = [];
 
@@ -85,7 +85,7 @@ class Validator {
         if (!q32 || !q33) {
           checks.push({
             isValid: false,
-            message: '性别选择为女性，需要填写后续相关问题',
+            message: '温馨提示：女性用户需要填写后续健康问题哦',
             relatedQuestions: [32, 33]
           });
         }
@@ -94,58 +94,73 @@ class Validator {
         if (q32 || q33) {
           checks.push({
             isValid: false,
-            message: '性别选择为男性，无需填写女性专属问题',
+            message: '温馨提示：这些是女性专属问题，男性用户可以跳过哦',
             relatedQuestions: [32, 33]
           });
         }
       }
     }
+
+    // 检查第32、33题（女性专属）是否需要性别校验
+    if (questionId === 32 || questionId === 33) {
+      const genderAnswer = allAnswers[4];
+      if (genderAnswer && genderAnswer !== 'B. 女性') {
+        checks.push({
+          isValid: false,
+          message: '温馨提示：这些是女性专属问题，男性用户可以跳过哦',
+          relatedQuestions: [32, 33]
+        });
+      }
+    }
     
-    // 第5题和第7题逻辑关联（家族史-自身患病一致性）
-    if (questionId === 5 || questionId === 7) {
-      const q5Answers = allAnswers[5] || [];
-      const q7Answers = allAnswers[7] || [];
-      
+    // 第6题和第8题逻辑关联（家族史-自身患病一致性）
+    // 只在第8题填写后才检查
+    if (questionId === 8) {
+      const q6Answers = allAnswers[6] || [];
+      const q8Answers = allAnswers[8] || [];
+
       // 检查是否有矛盾：家族有糖尿病但自身无
-      if (Array.isArray(q5Answers) && Array.isArray(q7Answers)) {
-        const hasFamilyDiabetes = q5Answers.includes('E. 糖尿病');
-        const hasSelfDiabetes = q7Answers.includes('E. 糖尿病');
-        const hasFamilyNone = q5Answers.includes('U. 以上皆无');
-        const hasSelfNone = q7Answers.includes('U. 以上皆无');
-        
-        if (hasFamilyDiabetes && !hasSelfDiabetes && !hasSelfNone) {
+      if (Array.isArray(q6Answers) && Array.isArray(q8Answers) && q8Answers.length > 0) {
+        const hasFamilyDiabetes = q6Answers.includes('E. 糖尿病');
+        const hasSelfDiabetes = q8Answers.includes('E. 糖尿病');
+        const hasFamilyNone = q6Answers.includes('U. 以上皆无');
+        const hasSelfNone = q8Answers.includes('U. 以上皆无');
+
+        // 家族有糖尿病，但自身选择"以上皆无"
+        if (hasFamilyDiabetes && hasSelfNone) {
           checks.push({
             isValid: false,
-            message: '您填写家族有糖尿病史，但自身无，是否确认？',
-            relatedQuestions: [5, 7]
+            message: '温馨提示：您提到家族有糖尿病史，目前自身无，建议后续注意健康监测哦~',
+            relatedQuestions: [6, 8]
           });
         }
-        
-        if (hasSelfDiabetes && !hasFamilyDiabetes && !hasFamilyNone) {
+        // 家族无糖尿病，但自身有糖尿病
+        else if (hasSelfDiabetes && hasFamilyNone) {
           checks.push({
             isValid: false,
-            message: '您填写有糖尿病，但家族无相关病史，是否确认？',
-            relatedQuestions: [5, 7]
+            message: '温馨提示：您提到有糖尿病，家族无相关病史，请注意填写准确哦~',
+            relatedQuestions: [6, 8]
           });
         }
       }
     }
     
-    // 第7题和第8题逻辑关联（患病-用药一致性）
-    if (questionId === 7 || questionId === 8) {
-      const q7Answers = allAnswers[7] || [];
+    // 第8题和第9题逻辑关联（患病-用药一致性）
+    // 只在第9题填写后才检查
+    if (questionId === 9) {
       const q8Answers = allAnswers[8] || [];
-      
-      if (Array.isArray(q7Answers) && Array.isArray(q8Answers)) {
-        const hasDiabetes = q7Answers.includes('E. 糖尿病');
-        const hasDiabetesMed = q8Answers.includes('B. 降糖药');
-        const hasMedNone = q8Answers.includes('G. 以上皆无');
-        
-        if (hasDiabetes && !hasDiabetesMed && !hasMedNone) {
+      const q9Answers = allAnswers[9] || [];
+
+      if (Array.isArray(q8Answers) && Array.isArray(q9Answers) && q9Answers.length > 0) {
+        const hasDiabetes = q8Answers.includes('E. 糖尿病');
+        const hasDiabetesMed = q9Answers.includes('B. 降糖药');
+        const hasMedNone = q9Answers.includes('G. 以上皆无');
+
+        if (hasDiabetes && hasMedNone) {
           checks.push({
             isValid: false,
-            message: '您填写有糖尿病，但未填长期用药，是否确认？',
-            relatedQuestions: [7, 8]
+            message: '温馨提示：您提到有糖尿病，建议注意用药管理哦',
+            relatedQuestions: [8, 9]
           });
         }
       }
@@ -170,8 +185,62 @@ class Validator {
         }
       }
     }
-    
+
     return checks.length > 0 ? checks : [{ isValid: true, message: '' }];
+  }
+
+  // 全面逻辑一致性校验（检查所有已填写题目的逻辑关系）
+  static validateAllLogic(allAnswers, questionnaire) {
+    const checks = [];
+
+    // 第6题和第8题逻辑关联（家族史-自身患病一致性）
+    const q6Answers = allAnswers[6] || [];
+    const q8Answers = allAnswers[8] || [];
+
+    // 只在第8题已填写时才检查
+    if (Array.isArray(q6Answers) && Array.isArray(q8Answers) && q8Answers.length > 0) {
+      const hasFamilyDiabetes = q6Answers.includes('E. 糖尿病');
+      const hasSelfDiabetes = q8Answers.includes('E. 糖尿病');
+      const hasFamilyNone = q6Answers.includes('U. 以上皆无');
+      const hasSelfNone = q8Answers.includes('U. 以上皆无');
+
+      // 家族有糖尿病，但自身选择"以上皆无"
+      if (hasFamilyDiabetes && hasSelfNone) {
+        checks.push({
+          isValid: false,
+          message: '温馨提示：您提到家族有糖尿病史，目前自身无，建议后续注意健康监测哦~',
+          relatedQuestions: [6, 8]
+        });
+      }
+      // 家族无糖尿病，但自身有糖尿病
+      else if (hasSelfDiabetes && hasFamilyNone) {
+        checks.push({
+          isValid: false,
+          message: '温馨提示：您提到有糖尿病，但家族无相关病史，请注意健康管理哦~',
+          relatedQuestions: [6, 8]
+        });
+      }
+    }
+
+    // 第8题和第9题逻辑关联（患病-用药一致性）
+    const q9Answers = allAnswers[9] || [];
+
+    // 只在第9题已填写时才检查
+    if (Array.isArray(q8Answers) && Array.isArray(q9Answers) && q9Answers.length > 0) {
+      const hasDiabetes = q8Answers.includes('E. 糖尿病');
+      const hasDiabetesMed = q9Answers.includes('B. 降糖药');
+      const hasMedNone = q9Answers.includes('G. 以上皆无');
+
+      if (hasDiabetes && hasMedNone) {
+        checks.push({
+          isValid: false,
+          message: '温馨提示：您提到有糖尿病，建议注意用药管理哦',
+          relatedQuestions: [8, 9]
+        });
+      }
+    }
+
+    return checks.length > 0 ? checks : [];
   }
 
   // 单题完整校验

@@ -315,7 +315,7 @@ async function handleAIQuestion(record_id, params) {
       }
     }).catch(err => console.log('日志记录失败:', err));
 
-    const answer = await callZhipuAI(`用户提问：${aiQuestion}，请你通俗回答，面向中老年糖尿病患者，≤150字，无绝对化表述。`);
+    const answer = await callZhipuAI(`你是专门协助中老年糖尿病患者的问卷问答助手，用户正在填写问卷中的当前题目，现在用户提问：${aiQuestion}，请你通俗回答，面向中老年糖尿病患者，语气要温和亲切，≤250字，无绝对化表述。`);
 
     // 更新日志
     db.collection('llm_log').where({
