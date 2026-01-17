@@ -51,6 +51,8 @@ Page({
     currentQuestion: null,
     currentAnswer: null,
     answers: {},
+    filledQuestionCount: 0,  // 已填写题目数量
+    lastLLMCheckCount: 0,    // 上次LLM校验时的题目数量
     progress: 0,
     totalQuestions: 33,
     progressPercent: 0,
@@ -199,6 +201,7 @@ Page({
       currentQuestion: question,
       currentAnswer: finalAnswer,
       errorMessage: '',
+      aiBubbleMessage: '我是问卷填写助手，有疑问请点击我～',  // 重置AI气泡提示
       isLastQuestion: isLast
     });
 
@@ -371,7 +374,7 @@ Page({
     });
   },
 
-  // 执行验证
+  // 执行验证（仅高频简单场景：必填、格式、选项互斥）
   performValidation: function() {
     const validations = Validator.validateQuestion(
       this.data.currentQuestion,
@@ -380,20 +383,10 @@ Page({
       this.data.questionnaire
     );
 
-    // 检查是否有错误
     const hasError = validations.some(v => !v.isValid);
 
-    // 如果当前题目验证通过，检查所有已填写题目的逻辑一致性
-    let logicErrors = [];
-    if (!hasError) {
-      logicErrors = Validator.validateAllLogic(this.data.answers, this.data.questionnaire);
-    }
-
-    const allErrors = [...validations, ...logicErrors];
-    const allHasError = allErrors.some(v => !v.isValid);
-
-    if (allHasError) {
-      const errorMessages = allErrors
+    if (hasError) {
+      const errorMessages = validations
         .filter(v => !v.isValid)
         .map(v => v.message)
         .join('；');
@@ -401,12 +394,8 @@ Page({
       this.setData({
         aiBubbleMessage: errorMessages
       });
-    } else {
-      // 验证通过，恢复默认提示
-      this.setData({
-        aiBubbleMessage: '填写正确，继续加油！'
-      });
     }
+    // 验证通过时不显示提示，保持默认AI助手提示
 
     this.updateLastInteractionTime();
   },
@@ -419,31 +408,141 @@ Page({
     }
   },
 
+  // LLM逻辑校验（复杂场景，每5题调用一次，且只在新填写题目时触发）
+  performLLMLogicCheck: function(callback) {
+    // 先执行回调（允许正常跳转）
+    callback();
+
+    // 计算已填写题目数量
+    const answers = this.data.answers;
+    let filledCount = 0;
+    for (const key in answers) {
+      const answer = answers[key];
+      if (answer !== undefined && answer !== null && answer !== '' &&
+          !(Array.isArray(answer) && answer.length === 0)) {
+        filledCount++;
+      }
+    }
+
+    // 检查是否需要触发LLM校验：
+    // 1. 已填写题目数量 >= 5
+    // 2. 已填写题目数量是5的倍数
+    // 3. 上次校验的题目数量 < 当前题目数量（避免重复校验已校验过的题目）
+    const shouldCheck = filledCount >= 5 &&
+                     filledCount % 5 === 0 &&
+                     this.data.lastLLMCheckCount < filledCount;
+
+    if (!shouldCheck) {
+      console.log(`已填写${filledCount}题，上次校验${this.data.lastLLMCheckCount}题，不满足校验条件，跳过LLM校验`);
+      return;
+    }
+
+    console.log(`已填写${filledCount}题，触发LLM逻辑校验`);
+
+    // 更新上次校验的题目数量
+    this.setData({
+      filledQuestionCount: filledCount,
+      lastLLMCheckCount: filledCount
+    });
+
+    // 构建已填写题目信息
+    const questionnaire = this.data.questionnaire.questions || [];
+    let filledQuestionsInfo = '';
+
+    questionnaire.forEach(question => {
+      const answer = answers[question.id];
+      if (answer !== undefined && answer !== null && answer !== '' &&
+          !(Array.isArray(answer) && answer.length === 0)) {
+        // 格式化答案
+        let formattedAnswer = answer;
+        if (Array.isArray(answer)) {
+          formattedAnswer = answer.join('、');
+        }
+
+        filledQuestionsInfo += `第${question.id}题（${question.content.substring(0, 30)}...）：${formattedAnswer}\n`;
+      }
+    });
+
+    // 构建提示词
+    const prompt = `你是专门协助中老年糖尿病患者的问卷问答助手，负责逻辑校验工作，确保用户填写的准确性，现在用户填写的内容如下：
+
+【已填写题目】
+${filledQuestionsInfo}
+
+请判断是否有填写错误或逻辑不一致的情况，用温柔的语句提醒用户，如果没有非常明显的逻辑错误，请不要很严格，可以说无问题，并带一些鼓励语句；
+
+注意事项：
+1. 只针对真正的逻辑错误或明显遗漏
+2. 不要过度校验，给用户一定的解释空间
+3. 语气要温和，用"温馨提示"、"建议"等词
+4. 如果问题不明确，不要猜测，可以说无问题，并带一些鼓励语句
+5. 简洁明了，不超过180字
+
+输出格式（JSON）：
+{
+  "hasIssue": true/false,
+  "issueType": "逻辑不一致|需要确认|无问题",
+  "message": "温馨提示内容"
+}`;
+
+    // 打印提示词到日志，方便调试
+    console.log('========== LLM逻辑校验提示词 ==========');
+    console.log(prompt);
+    console.log('========================================');
+
+    // 调用云函数（异步，不阻塞用户操作）
+    const questionnaireData = StorageManager.getCompleteQuestionnaireData();
+    wx.cloud.callFunction({
+      name: 'interact',
+      data: {
+        eventType: 'logicCheck',
+        record_id: questionnaireData?.record_id || 'temp',
+        prompt: prompt
+      },
+      success: (res) => {
+        if (res.result && res.result.success && res.result.hasIssue) {
+          // 有逻辑问题，显示在AI气泡中
+          this.setData({
+            aiBubbleMessage: res.result.message
+          });
+        }
+        // 无问题则不做任何操作，保持默认提示
+      },
+      fail: (error) => {
+        console.error('LLM逻辑校验失败:', error);
+        // LLM调用失败，降级处理：不做任何操作
+      }
+    });
+  },
+
   // 下一题/提交
   onNextQuestion: function() {
     this.saveCurrentAnswer();
 
-    // 判断当前是否是最后一题(对于男性是第31题,index 30;对于女性是第33题,index 32)
-    const genderAnswer = this.data.answers[4];
-    const isFemale = genderAnswer === 'B. 女性';
-    const lastQuestionIndex = isFemale ? 32 : 30; // 女性:第33题(index 32), 男性:第31题(index 30)
+    // 调用LLM进行逻辑校验（复杂场景）
+    this.performLLMLogicCheck(() => {
+      // 判断当前是否是最后一题(对于男性是第31题,index 30;对于女性是第33题,index 32)
+      const genderAnswer = this.data.answers[4];
+      const isFemale = genderAnswer === 'B. 女性';
+      const lastQuestionIndex = isFemale ? 32 : 30; // 女性:第33题(index 32), 男性:第31题(index 30)
 
-    if (this.data.currentQuestionIndex === lastQuestionIndex) {
-      // 最后一题，执行提交
-      this.submitQuestionnaire();
-    } else {
-      // 跳转到下一题
-      let nextIndex = this.data.currentQuestionIndex + 1;
+      if (this.data.currentQuestionIndex === lastQuestionIndex) {
+        // 最后一题，执行提交
+        this.submitQuestionnaire();
+      } else {
+        // 跳转到下一题
+        let nextIndex = this.data.currentQuestionIndex + 1;
 
-      // 性别联动逻辑：如果是男性，从第31题(index 30)直接跳到结束
-      if (nextIndex === 31 || nextIndex === 32) {
-        if (!isFemale) {
-          nextIndex = 33; // 直接跳到结束(index 33, 超出范围)
+        // 性别联动逻辑：如果是男性，从第31题(index 30)直接跳到结束
+        if (nextIndex === 31 || nextIndex === 32) {
+          if (!isFemale) {
+            nextIndex = 33; // 直接跳到结束(index 33, 超出范围)
+          }
         }
-      }
 
-      this.goToQuestion(nextIndex);
-    }
+        this.goToQuestion(nextIndex);
+      }
+    });
   },
 
   // 判断是否是最后一题

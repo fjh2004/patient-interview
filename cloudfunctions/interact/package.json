@@ -31,8 +31,7 @@
       "vpcId": ""
     },
     "envVariables": {
-      "ZHIPU_API_KEY": "your-zhipu-api-key",
-      "ZHIPU_API_SECRET": "your-zhipu-api-secret"
+      "DEEPSEEK_API_KEY": "1c4761251dd4be8dcdb4f5f9aa649674NTMmM2Y2ZDVhNDYxZWEzYjNYTMxYWQ1"
     }
   }
 }

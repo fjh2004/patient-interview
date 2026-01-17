@@ -6,12 +6,11 @@ cloud.init({
 
 const db = cloud.database();
 
-// 智谱AI配置
-const ZHIPU_AI_CONFIG = {
-  apiKey: '6c34e08c70354384a0eb419fcccda5df.zARoajMrj6ij658N',
-  apiSecret: '',
-  baseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-  model: 'glm-4-flash' // 使用 GLM-4.5-Flash 模型
+// DeepSeek AI配置（讯飞云辰 MaaS 平台）
+const DEEPSEEK_AI_CONFIG = {
+  apiKey: '1c4761251dd4be8dcb4f5f99aa649674:NTMxM2YyZDVhNDYxZWEzYjNiYTMxYWQ1',
+  baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2',
+  modelId: 'xopdeepseekv32'  // 模型ID，对应推理服务的模型卡片上的modelId
 };
 
 // 内置校验规则
@@ -133,6 +132,9 @@ async function main(event, context) {
 
       case 'generateHealthSummary':
         return await handleGenerateHealthSummary(params);
+
+      case 'logicCheck':
+        return await handleLogicCheck(params);
 
       default:
         return {
@@ -338,10 +340,62 @@ async function handleAIQuestion(record_id, params) {
   } catch (error) {
     console.error('AI问答失败：', error);
 
+    // 降级到模拟回答
+    const fallbackAnswer = getMockAIResponse(aiQuestion);
+
     return {
       success: true,
-      aiAnswer: await callZhipuAI(`用户提问：${aiQuestion}，通俗回答，面向中老年糖尿病患者，≤100字，无绝对化表述。`),
+      aiAnswer: fallbackAnswer,
+      fallback: true
+    };
+  }
+}
+
+/**
+ * 处理逻辑校验
+ */
+async function handleLogicCheck(params) {
+  const { prompt } = params;
+
+  try {
+    // 调用AI进行逻辑校验
+    const aiResponse = await callZhipuAI(`${prompt}\n\n请严格按照JSON格式输出，不要包含任何其他文字或标记。`);
+
+    // 解析AI返回的JSON
+    let logicData;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        logicData = JSON.parse(jsonMatch[0]);
+      } else {
+        logicData = JSON.parse(aiResponse);
+      }
+    } catch (parseError) {
+      console.error('解析AI响应失败:', parseError);
+      // 解析失败，默认无问题
+      return {
+        success: true,
+        hasIssue: false,
+        fallback: false
+      };
+    }
+
+    return {
+      success: true,
+      hasIssue: logicData.hasIssue || false,
+      message: logicData.message || '',
+      issueType: logicData.issueType || '无问题',
       fallback: false
+    };
+
+  } catch (error) {
+    console.error('逻辑校验失败:', error);
+
+    return {
+      success: false,
+      hasIssue: false,
+      error: error.message,
+      fallback: true
     };
   }
 }
@@ -390,27 +444,33 @@ async function handleGenerateHealthSummary(params) {
 }
 
 /**
- * 调用智谱AI API
+ * 调用讯飞云辰 MaaS DeepSeek AI API（OpenAI 兼容接口）
  */
 async function callZhipuAI(prompt) {
   // 检查API配置
-  if (!ZHIPU_AI_CONFIG.apiKey || ZHIPU_AI_CONFIG.apiKey === '' || ZHIPU_AI_CONFIG.apiKey === 'your-zhipu-api-key') {
+  if (!DEEPSEEK_AI_CONFIG.apiKey || DEEPSEEK_AI_CONFIG.apiKey === '' || DEEPSEEK_AI_CONFIG.apiKey === 'your-deepseek-api-key') {
     console.log('API Key未配置，使用模拟回答');
-    // API未配置时返回模拟回答
     return getMockAIResponse(prompt);
   }
 
-  console.log('使用真实AI API，模型:', ZHIPU_AI_CONFIG.model);
-  
+  console.log('========== 讯飞云辰 MaaS API 调用 ==========');
+  console.log('API Key:', DEEPSEEK_AI_CONFIG.apiKey.substring(0, 20) + '...');
+  console.log('Base URL:', DEEPSEEK_AI_CONFIG.baseUrl);
+  console.log('Model ID:', DEEPSEEK_AI_CONFIG.modelId);
+  console.log('========================================');
+
   try {
-    // 实际调用智谱AI API
+    // 调用讯飞云辰 MaaS API（OpenAI 兼容格式）
     const response = await new Promise((resolve, reject) => {
       const https = require('https');
       const url = require('url');
 
-      const parsedUrl = url.parse(ZHIPU_AI_CONFIG.baseUrl);
+      // 使用 /chat/completions 路径（OpenAI 兼容）
+      const parsedUrl = url.parse(DEEPSEEK_AI_CONFIG.baseUrl + '/chat/completions');
+
+      // 使用 OpenAI 兼容的请求体格式
       const postData = JSON.stringify({
-        model: ZHIPU_AI_CONFIG.model || 'glm-4-flash',
+        model: DEEPSEEK_AI_CONFIG.modelId,
         messages: [
           {
             role: 'user',
@@ -418,49 +478,73 @@ async function callZhipuAI(prompt) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 150
+        max_tokens: 4096
       });
-      
+
+      console.log('请求URL:', parsedUrl.href);
+      console.log('请求数据:', postData);
+
       const options = {
         hostname: parsedUrl.hostname,
         path: parsedUrl.path,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ZHIPU_AI_CONFIG.apiKey}`
+          'Authorization': `Bearer ${DEEPSEEK_AI_CONFIG.apiKey}`
         }
       };
-      
+
       const req = https.request(options, (res) => {
+        console.log('响应状态码:', res.statusCode);
+        console.log('响应头:', JSON.stringify(res.headers));
+
         let data = '';
         res.on('data', (chunk) => {
           data += chunk;
         });
         res.on('end', () => {
+          console.log('响应数据:', data);
           try {
             const jsonData = JSON.parse(data);
-            if (jsonData.choices && jsonData.choices[0] && jsonData.choices[0].message) {
+            // 根据平台实际的响应格式调整解析逻辑
+            if (jsonData.data && jsonData.data[0] && jsonData.data[0].text) {
+              console.log('成功获取AI回答:', jsonData.data[0].text);
+              resolve(jsonData.data[0].text);
+            } else if (jsonData.choices && jsonData.choices[0] && jsonData.choices[0].message) {
+              console.log('成功获取AI回答:', jsonData.choices[0].message.content);
               resolve(jsonData.choices[0].message.content);
+            } else if (jsonData.reply) {
+              console.log('成功获取AI回答:', jsonData.reply);
+              resolve(jsonData.reply);
+            } else if (jsonData.result) {
+              console.log('成功获取AI回答:', jsonData.result);
+              resolve(jsonData.result);
+            } else if (jsonData.error) {
+              console.error('API返回错误:', jsonData.error);
+              reject(new Error(jsonData.error.message || 'API错误'));
             } else {
+              console.error('API响应格式错误:', jsonData);
               reject(new Error('API响应格式错误'));
             }
           } catch (error) {
+            console.error('JSON解析失败:', error);
             reject(error);
           }
         });
       });
-      
+
       req.on('error', (error) => {
+        console.error('HTTP请求错误:', error);
         reject(error);
       });
-      
+
       req.write(postData);
       req.end();
     });
-    
+
     return response;
   } catch (error) {
-    console.error('调用智谱AI失败:', error);
+    console.error('调用讯飞云辰 MaaS 失败:', error);
     // 降级到模拟回答
     return getMockAIResponse(prompt);
   }
@@ -479,22 +563,16 @@ function getMockAIResponse(prompt) {
     '用药': '用药请遵医嘱，按时按量服用降糖药或注射胰岛素。不可自行调整剂量或停药。如有不适，及时就医调整治疗方案。',
     '并发症': '糖尿病常见并发症包括：视网膜病变、肾病、神经病变、心脑血管疾病等。定期体检、控制血糖可有效预防和延缓并发症发生。'
   };
-  
+
   // 查找匹配的关键词
   for (const [keyword, response] of Object.entries(keywordResponses)) {
     if (prompt.includes(keyword)) {
       return response + '（仅为问卷辅助，不构成医疗建议）';
     }
   }
-  
-  // 默认回答
-  const defaultResponses = [
-    '这是一个很好的问题。建议您咨询专业医生获取个性化医疗建议。保持健康的生活方式对控制病情很重要。',
-    '您的问题涉及专业医疗内容。建议定期体检，遵医嘱进行治疗和管理。如有任何不适，请及时就医。',
-    '关于这个问题，不同个体情况可能不同。建议您向医护人员详细咨询，制定适合您的健康管理方案。'
-  ];
-  const randomResponse = defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
-  return randomResponse + '（仅为问卷辅助，不构成医疗建议）';
+
+  // 默认回答（更贴合问卷场景的通用内容）
+  return '不好意思，暂时无法为您解答这个问题，您可以稍后再试哦～（仅为问卷辅助，不构成医疗建议）';
 }
 
 /**

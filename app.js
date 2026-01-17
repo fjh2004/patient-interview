@@ -49,11 +49,10 @@ App({
     // 云环境配置（需替换）
     cloudEnv: 'your-cloud-env-id',
     
-    // LLM API配置（智谱AI，需替换）
+    // LLM API配置（DeepSeek AI）
     llmConfig: {
-      apiKey: 'your-zhipu-api-key',      // 智谱API Key
-      apiSecret: 'your-zhipu-api-secret', // 智谱API Secret
-      baseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+      apiKey: 'your-deepseek-api-key',      // DeepSeek API Key
+      baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2'
     },
     
     // 问卷配置

@@ -70,116 +70,23 @@ class Validator {
     return { isValid: true, message: '' };
   }
 
-    // 逻辑一致性校验
-  static validateLogic(questionId, currentAnswer, allAnswers, questionnaire) {
+    // 简单逻辑一致性校验（仅高频场景：选项互斥）
+  static validateSimpleLogic(questionId, currentAnswer, allAnswers, questionnaire) {
     const checks = [];
 
-    // 第4题性别选择联动校验（32、33题）
-    if (questionId === 4) {
-      const isFemale = currentAnswer === 'B. 女性';
-      const q32 = allAnswers[32];
-      const q33 = allAnswers[33];
-
-      if (isFemale) {
-        // 女性必须填写32、33题
-        if (!q32 || !q33) {
-          checks.push({
-            isValid: false,
-            message: '温馨提示：女性用户需要填写后续健康问题哦',
-            relatedQuestions: [32, 33]
-          });
-        }
-      } else {
-        // 男性不能填写32、33题
-        if (q32 || q33) {
-          checks.push({
-            isValid: false,
-            message: '温馨提示：这些是女性专属问题，男性用户可以跳过哦',
-            relatedQuestions: [32, 33]
-          });
-        }
-      }
-    }
-
-    // 检查第32、33题（女性专属）是否需要性别校验
-    if (questionId === 32 || questionId === 33) {
-      const genderAnswer = allAnswers[4];
-      if (genderAnswer && genderAnswer !== 'B. 女性') {
-        checks.push({
-          isValid: false,
-          message: '温馨提示：这些是女性专属问题，男性用户可以跳过哦',
-          relatedQuestions: [32, 33]
-        });
-      }
-    }
-    
-    // 第6题和第8题逻辑关联（家族史-自身患病一致性）
-    // 只在第8题填写后才检查
-    if (questionId === 8) {
-      const q6Answers = allAnswers[6] || [];
-      const q8Answers = allAnswers[8] || [];
-
-      // 检查是否有矛盾：家族有糖尿病但自身无
-      if (Array.isArray(q6Answers) && Array.isArray(q8Answers) && q8Answers.length > 0) {
-        const hasFamilyDiabetes = q6Answers.includes('E. 糖尿病');
-        const hasSelfDiabetes = q8Answers.includes('E. 糖尿病');
-        const hasFamilyNone = q6Answers.includes('U. 以上皆无');
-        const hasSelfNone = q8Answers.includes('U. 以上皆无');
-
-        // 家族有糖尿病，但自身选择"以上皆无"
-        if (hasFamilyDiabetes && hasSelfNone) {
-          checks.push({
-            isValid: false,
-            message: '温馨提示：您提到家族有糖尿病史，目前自身无，建议后续注意健康监测哦~',
-            relatedQuestions: [6, 8]
-          });
-        }
-        // 家族无糖尿病，但自身有糖尿病
-        else if (hasSelfDiabetes && hasFamilyNone) {
-          checks.push({
-            isValid: false,
-            message: '温馨提示：您提到有糖尿病，家族无相关病史，请注意填写准确哦~',
-            relatedQuestions: [6, 8]
-          });
-        }
-      }
-    }
-    
-    // 第8题和第9题逻辑关联（患病-用药一致性）
-    // 只在第9题填写后才检查
-    if (questionId === 9) {
-      const q8Answers = allAnswers[8] || [];
-      const q9Answers = allAnswers[9] || [];
-
-      if (Array.isArray(q8Answers) && Array.isArray(q9Answers) && q9Answers.length > 0) {
-        const hasDiabetes = q8Answers.includes('E. 糖尿病');
-        const hasDiabetesMed = q9Answers.includes('B. 降糖药');
-        const hasMedNone = q9Answers.includes('G. 以上皆无');
-
-        if (hasDiabetes && hasMedNone) {
-          checks.push({
-            isValid: false,
-            message: '温馨提示：您提到有糖尿病，建议注意用药管理哦',
-            relatedQuestions: [8, 9]
-          });
-        }
-      }
-    }
-    
     // 多选框互斥逻辑（"以上皆无"与其他选项互斥）
-    // 需要先获取question对象
     const question = questionnaire.questions.find(q => q.id === questionId);
     if (question && question.type === 'checkbox') {
       if (Array.isArray(currentAnswer)) {
-        const hasNoneOption = currentAnswer.includes('U. 以上皆无') || 
+        const hasNoneOption = currentAnswer.includes('U. 以上皆无') ||
                              currentAnswer.includes('G. 以上皆无') ||
                              currentAnswer.includes('F. 以上皆无') ||
                              currentAnswer.includes('H. 以上皆无');
-        
+
         if (hasNoneOption && currentAnswer.length > 1) {
           checks.push({
             isValid: false,
-            message: '选择"以上皆无"时不能同时选择其他选项',
+            message: '温馨提示：选择"以上皆无"时不能同时选择其他选项哦~',
             relatedQuestions: [questionId]
           });
         }
@@ -259,10 +166,10 @@ class Validator {
       validations.push(typeCheck);
     }
     
-    // 逻辑一致性校验（仅在必填和类型校验通过后进行）
+    // 逻辑一致性校验（仅检查简单的选项互斥，复杂逻辑由LLM处理）
     if (requiredCheck.isValid && typeCheck.isValid) {
-      const logicChecks = this.validateLogic(question.id, answer, allAnswers, questionnaire);
-      validations.push(...logicChecks);
+      const simpleLogicChecks = this.validateSimpleLogic(question.id, answer, allAnswers, questionnaire);
+      validations.push(...simpleLogicChecks);
     }
     
     return validations;
