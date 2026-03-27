@@ -1,0 +1,113 @@
+<!-- 问卷填写页面 - 对照组（无AI助手） -->
+<wxs module="arrayUtils" src="./index.wxs"></wxs>
+<view class="page-container">
+  <!-- 顶部进度条 -->
+  <view class="progress-section">
+    <view class="progress-text">已完成 {{progress}}/{{totalQuestions}} 题 ({{progressPercent}}%)</view>
+    <view class="progress-bar">
+      <view class="progress-fill progress-{{progressStatus}}" style="width: {{progressPercent}}"></view>
+    </view>
+  </view>
+
+    <!-- 主体内容区 -->
+    <view class="content-section">
+      <!-- 当前问题卡片 -->
+      <view class="question-card" wx:if="{{currentQuestion}}">
+        <view class="question-header">
+          <text class="question-number">第{{currentQuestion.id}}题</text>
+          <text class="question-required" wx:if="{{currentQuestion.required}}">*必填</text>
+        </view>
+
+        <view class="question-content">
+          <text class="question-text">{{currentQuestion.content}}</text>
+          <text class="question-type-badge" wx:if="{{currentQuestion.type === 'checkbox'}}">（可多选）</text>
+        </view>
+
+      <!-- 输入型题目 -->
+      <view wx:if="{{currentQuestion.type === 'input_single' || currentQuestion.type === 'input_number' || currentQuestion.type === 'input_multi'}}" class="input-section">
+        <input
+          wx:if="{{currentQuestion.type === 'input_single' || currentQuestion.type === 'input_number'}}"
+          class="input-field"
+          value="{{currentAnswer}}"
+          placeholder="{{currentQuestion.placeholder}}"
+          placeholder-class="placeholder-text"
+          bindinput="onInputChange"
+          bindblur="onInputBlur"
+          type="{{currentQuestion.type === 'input_number' ? 'number' : 'text'}}"
+        />
+
+        <textarea
+          wx:if="{{currentQuestion.type === 'input_multi'}}"
+          class="textarea-field"
+          value="{{currentAnswer}}"
+          placeholder="{{currentQuestion.placeholder}}"
+          placeholder-class="placeholder-text"
+          bindinput="onTextareaChange"
+          bindblur="onInputBlur"
+          maxlength="200"
+          auto-height
+        />
+      </view>
+
+      <!-- 单选题目 -->
+      <view wx:if="{{currentQuestion.type === 'radio'}}" class="options-section">
+        <view
+          wx:for="{{currentQuestion.options}}"
+          wx:key="index"
+          class="option-item {{currentAnswer === item ? 'selected' : ''}}"
+          bindtap="onOptionSelect"
+          data-value="{{item}}"
+        >
+          <text class="option-text">{{item}}</text>
+          <view class="option-check" wx:if="{{currentAnswer === item}}">✓</view>
+        </view>
+      </view>
+
+      <!-- 多选题目 -->
+      <view wx:if="{{currentQuestion.type === 'checkbox'}}" class="options-section">
+        <view
+          wx:for="{{currentQuestion.options}}"
+          wx:for-index="optIndex"
+          wx:for-item="optItem"
+          wx:key="optIndex"
+          class="option-item {{arrayUtils.includes(currentAnswer, optItem) ? 'selected' : ''}}"
+          bindtap="onMultiOptionSelect"
+          data-value="{{optItem}}"
+        >
+          <text class="option-text">{{optItem}}</text>
+          <view class="option-check" wx:if="{{arrayUtils.includes(currentAnswer, optItem)}}">✓</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载状态 -->
+    <view wx:if="{{isLoading}}" class="loading-section">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 错误提示 -->
+    <view wx:if="{{errorMessage}}" class="error-section">
+      <text class="error-text">{{errorMessage}}</text>
+    </view>
+  </view>
+
+  <!-- 操作按钮区 -->
+  <view class="action-section">
+    <button
+      class="secondary-btn"
+      bindtap="onPrevQuestion"
+      disabled="{{currentQuestionIndex === 0}}"
+    >
+      上一题
+    </button>
+
+    <button
+      class="primary-btn"
+      bindtap="onNextQuestion"
+      disabled="{{isSubmitting}}"
+    >
+      {{isLastQuestion ? '提交问卷' : '下一题'}}
+    </button>
+  </view>
+</view>

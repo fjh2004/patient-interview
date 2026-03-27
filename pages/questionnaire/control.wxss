@@ -1,0 +1,287 @@
+/* 问卷填写页面样式 - 对照组（无AI样式） */
+
+.page-container {
+  height: 100vh;
+  background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 进度条区域 */
+.progress-section {
+  padding: 24rpx 32rpx;
+  background-color: #FFFFFF;
+  border-bottom: 1rpx solid #E5E5E5;
+}
+
+.progress-text {
+  font-size: 31rpx;
+  color: #333333;
+  text-align: center;
+  margin-bottom: 16rpx;
+  font-weight: normal;
+}
+
+.progress-bar {
+  height: 8rpx;
+  background-color: #E5E5E5;
+  border-radius: 4rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #FF9800;
+  border-radius: 4rpx;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.progress-fill.progress-low {
+  background-color: #FF9800;
+}
+
+.progress-fill.progress-medium {
+  background-color: #2196F3;
+}
+
+.progress-fill.progress-high {
+  background-color: #4CAF50;
+}
+
+.progress-fill.progress-complete {
+  background-color: #4CAF50;
+}
+
+/* 内容区域 */
+.content-section {
+  flex: 1;
+  padding: 32rpx;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* 问题卡片 */
+.question-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid #E5E5E5;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.question-number {
+  font-size: 29rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.question-required {
+  font-size: 26rpx;
+  color: #FF6B6B;
+  background-color: #FFEEEE;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.question-content {
+  margin-bottom: 32rpx;
+}
+
+.question-text {
+  font-size: 34rpx;
+  line-height: 39.2rpx;
+  color: #333333;
+  margin-bottom: 0;
+  display: block;
+}
+
+.question-type-badge {
+  font-size: 26rpx;
+  color: #2196F3;
+  margin-left: 8rpx;
+  font-weight: normal;
+}
+
+/* 输入区域 */
+.input-section {
+  margin-top: 24rpx;
+}
+
+.input-field {
+  height: 80rpx;
+  background-color: #F5F5F5;
+  border-radius: 40rpx;
+  padding: 0 32rpx;
+  font-size: 29rpx;
+  border: 1rpx solid #E5E5E5;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.textarea-field {
+  min-height: 160rpx;
+  background-color: #F5F5F5;
+  border-radius: 20rpx;
+  padding: 24rpx 32rpx;
+  font-size: 29rpx;
+  border: 1rpx solid #E5E5E5;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 33.6rpx;
+}
+
+.placeholder-text {
+  color: #999999;
+  font-size: 29rpx;
+}
+
+/* 选项区域 */
+.options-section {
+  margin-top: 24rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.option-item {
+  width: calc(75% - 1rpx);
+  height: 60rpx;
+  background-color: #F5F5F5;
+  border-radius: 8rpx;
+  padding: 0 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 26rpx;
+  border: 1rpx solid #E5E5E5;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  cursor: pointer;
+  position: relative;
+  z-index: 100;
+}
+
+.option-item.selected {
+  border: 2rpx solid #4CAF50 !important;
+  background-color: #E8F5E8 !important;
+  color: #2E7D32 !important;
+}
+
+.option-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-check {
+  color: #4CAF50;
+  font-weight: bold;
+  font-size: 34rpx;
+}
+
+/* 加载状态 */
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 4rpx solid #E5E5E5;
+  border-top: 4rpx solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 24rpx;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 29rpx;
+  color: #999999;
+}
+
+/* 错误提示 */
+.error-section {
+  background-color: #FFEEEE;
+  border: 1rpx solid #FF6B6B;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-top: 24rpx;
+}
+
+.error-text {
+  font-size: 29rpx;
+  color: #D32F2F;
+  text-align: center;
+}
+
+/* 操作按钮区域 */
+.action-section {
+  display: flex;
+  gap: 24rpx;
+  padding: 32rpx;
+  background-color: #FFFFFF;
+  border-top: 1rpx solid #E5E5E5;
+  flex-shrink: 0;
+}
+
+.action-section .secondary-btn,
+.action-section .primary-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  font-size: 29rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondary-btn {
+  background-color: #E5E5E5;
+  color: #333333;
+  border: 1rpx solid #E5E5E5;
+}
+
+.secondary-btn:active {
+  background-color: #D5D5D5;
+}
+
+.secondary-btn[disabled] {
+  background-color: #F5F5F5;
+  color: #999999;
+  border-color: #E5E5E5;
+}
+
+.primary-btn {
+  background-color: #4CAF50;
+  color: #FFFFFF;
+  border: none;
+}
+
+.primary-btn:active {
+  background-color: #45a049;
+}
+
+.primary-btn[disabled] {
+  background-color: #A5D6A7;
+  color: #E8F5E8;
+}

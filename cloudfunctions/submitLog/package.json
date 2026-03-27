@@ -1,0 +1,12 @@
+{
+  "name": "submitLog",
+  "version": "1.0.0",
+  "description": "日志收集云函数 - 统一收集实验数据",
+  "main": "index.js",
+  "scripts": {},
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

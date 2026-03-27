@@ -228,8 +228,8 @@ async function handleClickTerm(params) {
  * 处理问卷提交
  */
 async function handleSubmit(record_id, params) {
-  const { allAnswers } = params;
-  
+  const { allAnswers, group } = params;  // 添加 group 参数
+
   // 执行全量校验
   const validationResult = await validateAllAnswers(allAnswers);
   if (!validationResult.isValid) {
@@ -240,7 +240,7 @@ async function handleSubmit(record_id, params) {
       fallback: false
     };
   }
-  
+
   // 保存到数据库
   try {
     const saveResult = await db.collection('fill_record').add({
@@ -249,29 +249,31 @@ async function handleSubmit(record_id, params) {
         answers: allAnswers,
         submit_time: db.serverDate(),
         status: 'completed',
+        group: group || 'unknown',  // 记录分组信息
         create_time: db.serverDate()
       }
     });
-    
+
     // 记录日志
     await db.collection('llm_log').add({
       data: {
         record_id: record_id,
         eventType: 'submit',
         content: '问卷提交成功',
+        group: group || 'unknown',  // 记录分组信息
         create_time: db.serverDate()
       }
     });
-    
+
     return {
       success: true,
       feedback: '问卷提交成功！',
       fallback: false
     };
-    
+
   } catch (error) {
     console.error('保存问卷失败：', error);
-    
+
     // 保存失败，尝试降级存储
     try {
       await cloud.uploadFile({
@@ -279,16 +281,17 @@ async function handleSubmit(record_id, params) {
         fileContent: JSON.stringify({
           record_id,
           answers: allAnswers,
+          group: group || 'unknown',  // 记录分组信息
           submit_time: new Date().toISOString()
         })
       });
-      
+
       return {
         success: true,
         feedback: '问卷提交成功（数据已备份）',
         fallback: true
       };
-      
+
     } catch (backupError) {
       return {
         success: false,
@@ -303,7 +306,7 @@ async function handleSubmit(record_id, params) {
  * 处理AI问答
  */
 async function handleAIQuestion(record_id, params) {
-  const { aiQuestion } = params;
+  const { aiQuestion, group } = params;  // 添加 group 参数
 
   try {
     // 记录问答日志（异步执行，不影响主流程）
@@ -313,6 +316,7 @@ async function handleAIQuestion(record_id, params) {
         eventType: 'aiQuestion',
         content: aiQuestion,
         response: 'pending',
+        group: group || 'unknown',  // 记录分组信息
         create_time: db.serverDate()
       }
     }).catch(err => console.log('日志记录失败:', err));
@@ -355,9 +359,20 @@ async function handleAIQuestion(record_id, params) {
  * 处理逻辑校验
  */
 async function handleLogicCheck(params) {
-  const { prompt } = params;
+  const { prompt, record_id, group } = params;  // 添加 group 参数
 
   try {
+    // 记录逻辑校验日志
+    db.collection('llm_log').add({
+      data: {
+        record_id: record_id,
+        eventType: 'logicCheck',
+        prompt: prompt,
+        group: group || 'unknown',  // 记录分组信息
+        create_time: db.serverDate()
+      }
+    }).catch(err => console.log('日志记录失败:', err));
+
     // 调用AI进行逻辑校验
     const aiResponse = await callZhipuAI(`${prompt}\n\n请严格按照JSON格式输出，不要包含任何其他文字或标记。`);
 

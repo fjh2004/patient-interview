@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/questionnaire/questionnaire",
+    "pages/questionnaire/control",
     "pages/result/result",
     "pages/explain/explain"
   ],

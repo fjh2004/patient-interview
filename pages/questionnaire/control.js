@@ -1,7 +1,6 @@
-// 问卷填写页面逻辑 - 糖尿病患者体检前问卷智能交互系统核心
+// 问卷填写页面逻辑 - 对照组（无LLM功能）
 const StorageManager = require('../../utils/storage.js');
 const Validator = require('../../utils/validator.js');
-const LLMFallback = require('../../utils/llmFallback.js');
 const Logger = require('../../utils/logger.js');
 
 // 预制问卷数据（32道题完整配置）
@@ -47,7 +46,7 @@ const QUESTIONNAIRE_TEMPLATE = {
 Page({
   data: {
     // 分组标识
-    group: 'experimental',
+    group: 'control',
 
     // 问卷相关数据
     questionnaire: QUESTIONNAIRE_TEMPLATE,
@@ -55,51 +54,21 @@ Page({
     currentQuestion: null,
     currentAnswer: null,
     answers: {},
-    filledQuestionCount: 0,  // 已填写题目数量
-    lastLLMCheckCount: 0,    // 上次LLM校验时的题目数量
     progress: 0,
     totalQuestions: 33,
     progressPercent: 0,
-    progressStatus: 'low',  // 进度状态：low, medium, high, complete
-    isLastQuestion: false,  // 是否是最后一题
+    progressStatus: 'low',
+    isLastQuestion: false,
 
     // UI状态
     isLoading: false,
     errorMessage: '',
     isSubmitting: false,
     isSubmitted: false,  // 是否已提交（用于判断是否中途退出）
-
-    // AI助手相关
-    isAIPanelOpen: false,
-    aiBubbleMessage: '我是问卷填写助手，有疑问请点击我～',
-    logger: null,  // 日志记录器
-    aiQuestion: '',
-    aiDialog: [],
-    isAIThinking: false,  // AI思考状态
-    quickQuestions: [
-      '这个问题该怎么选？',
-      '选项都是什么意思？',
-      '为什么需要填写这个？',
-      '填写时需要注意什么？'
-    ],
-
-    // AI图标拖动相关
-    aiIconRight: 24,
-    aiIconBottom: 480,  // 40vh约等于480rpx（按屏幕高度1200rpx计算）
-
-    // 定时器相关
-    lastInteractionTime: 0,
-    encouragementTimer: null,
-    validationTimer: null
+    logger: null  // 日志记录器
   },
 
   onLoad: function(options) {
-    this.dragging = false;
-    this.isClick = true;  // 用于判断是点击还是拖动
-    this.touchStartTime = 0;
-    // 初始化屏幕信息缓存
-    this.screenInfo = wx.getSystemInfoSync();
-
     // 检查并清理过期会话
     Logger.checkAndCleanExpiredSessions();
 
@@ -137,61 +106,18 @@ Page({
     }
 
     this.initQuestionnaire();
-    this.startEncouragementTimer();
   },
 
-  // 页面显示
   onShow: function() {
-    // 检查是否有未完成的会话（用户可能从后台返回）
-    const lastExitInfo = StorageManager.getLastExitInfo();
-    const currentSessionId = StorageManager.getCurrentSessionId();
-    
-    if (lastExitInfo && !currentSessionId) {
-      console.log('[会话] 用户从后台返回，有未完成会话');
-      
-      // 提示用户是否恢复
-      wx.showModal({
-        title: '恢复填写',
-        content: '检测到您上次有未完成的问卷，是否继续填写？',
-        success: (res) => {
-          if (res.confirm) {
-            // 用户选择恢复
-            console.log('[会话] 用户选择恢复填写');
-            
-            // 如果会话ID不匹配，可能需要创建新的logger
-            if (lastExitInfo.session_id !== this.data.logger.sessionId) {
-              console.log('[会话] 会话ID不匹配，可能需要特殊处理');
-            }
-          } else {
-            // 用户选择重新开始
-            console.log('[会话] 用户选择重新开始');
-            StorageManager.clearLastExitInfo();
-            StorageManager.clearCurrentSessionId();
-            
-            // 清空本地存储
-            StorageManager.clearQuestionnaire();
-            
-            // 重新初始化
-            this.setData({
-              answers: {},
-              currentQuestionIndex: 0
-            });
-          }
-        }
-      });
-    }
-
     this.checkAndUpdateProgress();
   },
 
   // 页面卸载
   onUnload: function() {
-    this.clearTimers();
-
-    // 检查是否是退出事件
+    // 记录中途退出
     const { logger, currentQuestionIndex, answers } = this.data;
 
-    // 只有在未提交的情况下才处理退出
+    // 只有在未提交的情况下才记录为abandoned
     const isSubmitted = this.data.isSubmitted === true;
 
     if (logger && !isSubmitted && currentQuestionIndex >= 0) {
@@ -231,56 +157,41 @@ Page({
         }
       }
 
-      // 记录临时退出（用户可能返回）
-      logger.logTemporaryExit(currentQuestionIndex, hasSkip).then(result => {
-        console.log('[会话] 临时退出记录完成:', result);
-      });
+      // 记录中途退出，exitQuestionIndex为当前题目索引，isExitEvent=true表示是退出事件
+      logger.logSessionEnd('abandoned', currentQuestionIndex, hasSkip, true);
     }
   },
 
   // 初始化问卷
   initQuestionnaire: function() {
-    // 检查本地是否有未完成的问卷
     const savedData = StorageManager.getQuestionnaire();
 
     if (savedData) {
-      // 检查答案的key格式，如果是旧格式(0,1,2...)则清空缓存
       const answerKeys = Object.keys(savedData.answers || {});
       const hasOldFormat = answerKeys.some(key => !isNaN(key) && parseInt(key) >= 0 && parseInt(key) < 10);
 
       if (hasOldFormat) {
-        console.log('检测到旧格式数据，清空缓存重新开始');
         StorageManager.clearQuestionnaire();
-        // 清空后创建新问卷
         const userInfo = StorageManager.getUserInfo() || {};
         const recordId = StorageManager.createNewQuestionnaire(userInfo, QUESTIONNAIRE_TEMPLATE);
         if (recordId) {
-          console.log('创建新问卷记录：', recordId);
           this.goToQuestion(0);
         } else {
           this.showError('初始化问卷失败，请重试');
         }
       } else {
-        // 恢复之前的填写进度
         this.setData({
           answers: savedData.answers || {},
           progress: savedData.progress || 0,
           questionnaire: savedData.template || QUESTIONNAIRE_TEMPLATE
         });
-
-        // 跳转到上次的进度
         const currentIndex = Math.min(savedData.progress, this.data.totalQuestions - 1);
         this.goToQuestion(currentIndex);
-
-        console.log('恢复问卷进度：', savedData.progress);
       }
     } else {
-      // 创建新的问卷记录
       const userInfo = StorageManager.getUserInfo() || {};
       const recordId = StorageManager.createNewQuestionnaire(userInfo, QUESTIONNAIRE_TEMPLATE);
-
       if (recordId) {
-        console.log('创建新问卷记录：', recordId);
         this.goToQuestion(0);
       } else {
         this.showError('初始化问卷失败，请重试');
@@ -288,12 +199,10 @@ Page({
     }
 
     this.updateProgressDisplay();
-    this.updateLastInteractionTime();
   },
 
   // 跳转到指定题目
   goToQuestion: function(index) {
-    // 允许index等于totalQuestions,用于结束问卷
     if (index < 0 || index > this.data.totalQuestions) return;
 
     const question = this.data.questionnaire.questions[index];
@@ -305,9 +214,8 @@ Page({
     if (question.id === 32 || question.id === 33) {
       const genderAnswer = this.data.answers[4];
       if (genderAnswer !== 'B. 女性') {
-        // 如果是男性，跳过女性专属问题
         if (index === 31) this.goToQuestion(32);
-        if (index === 32) this.goToQuestion(33); // 跳到结束
+        if (index === 32) this.goToQuestion(33);
         return;
       }
     }
@@ -332,26 +240,21 @@ Page({
       currentQuestion: question,
       currentAnswer: finalAnswer,
       errorMessage: '',
-      aiBubbleMessage: '我是问卷填写助手，有疑问请点击我～',  // 重置AI气泡提示
       isLastQuestion: isLast
     });
-
-    this.updateLastInteractionTime();
   },
 
   // 更新进度显示
   updateProgressDisplay: function() {
     const progress = this.data.progress;
-    // 根据性别动态计算总题数
     const genderAnswer = this.data.answers[4];
     const isFemale = genderAnswer === 'B. 女性';
     const actualTotalQuestions = isFemale ? 33 : 31;
-    const lastQuestionIndex = isFemale ? 32 : 30; // 女性:第33题(index 32), 男性:第31题(index 30)
+    const lastQuestionIndex = isFemale ? 32 : 30;
 
     const percent = Math.round((progress / actualTotalQuestions) * 100);
     const isLast = this.data.currentQuestionIndex === lastQuestionIndex;
 
-    // 根据进度百分比设置状态
     let progressStatus = 'low';
     if (percent >= 100) {
       progressStatus = 'complete';
@@ -364,18 +267,16 @@ Page({
     this.setData({
       progressPercent: percent,
       progressStatus: progressStatus,
-      totalQuestions: actualTotalQuestions,  // 动态更新总题数
-      isLastQuestion: isLast  // 更新是否是最后一题
+      totalQuestions: actualTotalQuestions,
+      isLastQuestion: isLast
     });
   },
 
   // 检查并更新进度
   checkAndUpdateProgress: function() {
-    // 只计算真正填写的答案数量（排除空值）
     let answeredCount = 0;
     for (const key in this.data.answers) {
       const answer = this.data.answers[key];
-      // 检查是否是有效答案
       if (answer !== undefined && answer !== null && answer !== '' &&
           !(Array.isArray(answer) && answer.length === 0)) {
         answeredCount++;
@@ -389,8 +290,6 @@ Page({
         progress: newProgress
       });
       this.updateProgressDisplay();
-
-      // 保存整个answers对象到本地存储
       StorageManager.updateAnswers(this.data.answers);
     }
   },
@@ -398,24 +297,19 @@ Page({
   // 输入框变化处理
   onInputChange: function(e) {
     const value = e.detail.value;
-    console.log('输入框变化 - 题目ID:', this.data.currentQuestion.id, '题目:', this.data.currentQuestion.content, '值:', value);
     this.setData({
       currentAnswer: value
     });
-    this.updateLastInteractionTime();
   },
 
   onTextareaChange: function(e) {
     const value = e.detail.value;
-    console.log('文本域变化 - 题目ID:', this.data.currentQuestion.id, '题目:', this.data.currentQuestion.content, '值:', value);
     this.setData({
       currentAnswer: value
     });
-    this.updateLastInteractionTime();
   },
 
   onInputBlur: function() {
-    console.log('输入框失焦 - 题目ID:', this.data.currentQuestion.id, '当前答案:', this.data.currentAnswer);
     this.saveCurrentAnswer();
     this.validateCurrentAnswer();
   },
@@ -430,9 +324,7 @@ Page({
     });
     this.saveCurrentAnswer();
     this.validateCurrentAnswer();
-    this.updateLastInteractionTime();
 
-    // 如果是性别题（ID=4），选择后立即更新进度显示
     if (questionId === 4) {
       this.updateProgressDisplay();
     }
@@ -448,10 +340,8 @@ Page({
     }
 
     if (currentAnswers.includes(value)) {
-      // 取消选择
       currentAnswers = currentAnswers.filter(item => item !== value);
     } else {
-      // 添加选择
       currentAnswers.push(value);
     }
 
@@ -460,7 +350,6 @@ Page({
     });
     this.saveCurrentAnswer();
     this.validateCurrentAnswer();
-    this.updateLastInteractionTime();
   },
 
   // 保存当前答案
@@ -469,18 +358,13 @@ Page({
       const questionId = this.data.currentQuestion.id;
       const answerValue = this.data.currentAnswer;
 
-      console.log('保存答案 - 题目ID:', questionId, '题目:', this.data.currentQuestion.content, '答案:', answerValue);
-
       const newAnswers = { ...this.data.answers };
       newAnswers[questionId] = answerValue;
-
-      console.log('保存后的answers对象:', newAnswers);
 
       this.setData({
         answers: newAnswers
       });
 
-      // 更新本地存储
       StorageManager.updateAnswer(questionId, answerValue);
       this.checkAndUpdateProgress();
 
@@ -488,27 +372,8 @@ Page({
     }
   },
 
-  // 验证当前答案
+  // 验证当前答案（基础验证，无LLM）
   validateCurrentAnswer: function() {
-    if (!this.data.currentQuestion) return;
-    
-    // 清除之前的验证定时器
-    if (this.data.validationTimer) {
-      clearTimeout(this.data.validationTimer);
-    }
-    
-    // 延迟验证，避免频繁请求
-    const timer = setTimeout(() => {
-      this.performValidation();
-    }, 1000);
-    
-    this.setData({
-      validationTimer: timer
-    });
-  },
-
-  // 执行验证（仅高频简单场景：必填、格式、选项互斥）
-  performValidation: function() {
     const validations = Validator.validateQuestion(
       this.data.currentQuestion,
       this.data.currentAnswer,
@@ -525,12 +390,13 @@ Page({
         .join('；');
 
       this.setData({
-        aiBubbleMessage: errorMessages
+        errorMessage: errorMessages
+      });
+    } else {
+      this.setData({
+        errorMessage: ''
       });
     }
-    // 验证通过时不显示提示，保持默认AI助手提示
-
-    this.updateLastInteractionTime();
   },
 
   // 上一题
@@ -541,164 +407,27 @@ Page({
     }
   },
 
-  // LLM逻辑校验（复杂场景，每5题调用一次，且只在新填写题目时触发）
-  performLLMLogicCheck: function(callback) {
-    // 先执行回调（允许正常跳转）
-    callback();
-
-    // 计算已填写题目数量
-    const answers = this.data.answers;
-    let filledCount = 0;
-    for (const key in answers) {
-      const answer = answers[key];
-      if (answer !== undefined && answer !== null && answer !== '' &&
-          !(Array.isArray(answer) && answer.length === 0)) {
-        filledCount++;
-      }
-    }
-
-    // 检查是否需要触发LLM校验：
-    // 1. 已填写题目数量 >= 5
-    // 2. 已填写题目数量是5的倍数
-    // 3. 上次校验的题目数量 < 当前题目数量（避免重复校验已校验过的题目）
-    const shouldCheck = filledCount >= 5 &&
-                     filledCount % 5 === 0 &&
-                     this.data.lastLLMCheckCount < filledCount;
-
-    if (!shouldCheck) {
-      console.log(`已填写${filledCount}题，上次校验${this.data.lastLLMCheckCount}题，不满足校验条件，跳过LLM校验`);
-      return;
-    }
-
-    console.log(`已填写${filledCount}题，触发LLM逻辑校验`);
-
-    // 更新上次校验的题目数量
-    this.setData({
-      filledQuestionCount: filledCount,
-      lastLLMCheckCount: filledCount
-    });
-
-    // 构建已填写题目信息
-    const questionnaire = this.data.questionnaire.questions || [];
-    let filledQuestionsInfo = '';
-
-    questionnaire.forEach(question => {
-      const answer = answers[question.id];
-      if (answer !== undefined && answer !== null && answer !== '' &&
-          !(Array.isArray(answer) && answer.length === 0)) {
-        // 格式化答案
-        let formattedAnswer = answer;
-        if (Array.isArray(answer)) {
-          formattedAnswer = answer.join('、');
-        }
-
-        filledQuestionsInfo += `第${question.id}题（${question.content.substring(0, 30)}...）：${formattedAnswer}\n`;
-      }
-    });
-
-    // 构建提示词
-    const prompt = `你是专门协助中老年糖尿病患者的问卷问答助手，负责逻辑校验工作，确保用户填写的准确性，现在用户填写的内容如下：
-
-【已填写题目】
-${filledQuestionsInfo}
-
-请判断是否有填写错误或逻辑不一致的情况，用温柔的语句提醒用户，如果没有非常明显的逻辑错误，请不要很严格，可以说无问题，并带一些鼓励语句；
-
-注意事项：
-1. 只针对真正的逻辑错误或明显遗漏
-2. 不要过度校验，给用户一定的解释空间
-3. 语气要温和，用"温馨提示"、"建议"等词
-4. 如果问题不明确，不要猜测，可以说无问题，并带一些鼓励语句
-5. 简洁明了，不超过180字
-
-输出格式（JSON）：
-{
-  "hasIssue": true/false,
-  "issueType": "逻辑不一致|需要确认|无问题",
-  "message": "温馨提示内容"
-}`;
-
-    // 打印提示词到日志，方便调试
-    console.log('========== LLM逻辑校验提示词 ==========');
-    console.log(prompt);
-    console.log('========================================');
-
-    // 记录LLM逻辑检查（简化版）
-    const { logger } = this.data;
-    if (logger) {
-      logger.logLLMInteraction('logic_check', null);
-    }
-
-    // 调用云函数（异步，不阻塞用户操作）
-    const questionnaireData = StorageManager.getCompleteQuestionnaireData();
-    wx.cloud.callFunction({
-      name: 'interact',
-      data: {
-        eventType: 'logicCheck',
-        record_id: questionnaireData?.record_id || 'temp',
-        prompt: prompt,
-        group: this.data.group  // 传递分组信息
-      },
-      success: (res) => {
-        // 记录用户是否接受LLM建议
-        if (res.result && res.result.success && res.result.hasIssue) {
-          // 有逻辑问题，显示在AI气泡中
-          this.setData({
-            aiBubbleMessage: res.result.message,
-            lastLLMHasIssue: true
-          });
-          // 用户看到提示后，可以选择修改或忽略
-          // 这里暂时记录为 ignore，如果用户点击AI气泡查看详情，可以后续记录
-          if (logger) {
-            logger.logLLMInteraction('logic_check', 'ignore');
-          }
-        }
-        // 无问题则不做任何操作，保持默认提示
-      },
-      fail: (error) => {
-        console.error('LLM逻辑校验失败:', error);
-        // LLM调用失败，降级处理：不做任何操作
-      }
-    });
-  },
-
   // 下一题/提交
   onNextQuestion: function() {
     this.saveCurrentAnswer();
 
-    // 调用LLM进行逻辑校验（复杂场景）
-    this.performLLMLogicCheck(() => {
-      // 判断当前是否是最后一题(对于男性是第31题,index 30;对于女性是第33题,index 32)
-      const genderAnswer = this.data.answers[4];
-      const isFemale = genderAnswer === 'B. 女性';
-      const lastQuestionIndex = isFemale ? 32 : 30; // 女性:第33题(index 32), 男性:第31题(index 30)
-
-      if (this.data.currentQuestionIndex === lastQuestionIndex) {
-        // 最后一题，执行提交
-        this.submitQuestionnaire();
-      } else {
-        // 跳转到下一题
-        let nextIndex = this.data.currentQuestionIndex + 1;
-
-        // 性别联动逻辑：如果是男性，从第31题(index 30)直接跳到结束
-        if (nextIndex === 31 || nextIndex === 32) {
-          if (!isFemale) {
-            nextIndex = 33; // 直接跳到结束(index 33, 超出范围)
-          }
-        }
-
-        this.goToQuestion(nextIndex);
-      }
-    });
-  },
-
-  // 判断是否是最后一题
-  isLastQuestion: function() {
     const genderAnswer = this.data.answers[4];
     const isFemale = genderAnswer === 'B. 女性';
-    const lastQuestionIndex = isFemale ? 32 : 30; // 女性:第33题(index 32), 男性:第31题(index 30)
+    const lastQuestionIndex = isFemale ? 32 : 30;
 
-    return this.data.currentQuestionIndex === lastQuestionIndex;
+    if (this.data.currentQuestionIndex === lastQuestionIndex) {
+      this.submitQuestionnaire();
+    } else {
+      let nextIndex = this.data.currentQuestionIndex + 1;
+
+      if (nextIndex === 31 || nextIndex === 32) {
+        if (!isFemale) {
+          nextIndex = 33;
+        }
+      }
+
+      this.goToQuestion(nextIndex);
+    }
   },
 
   // 提交问卷
@@ -707,24 +436,14 @@ ${filledQuestionsInfo}
       isSubmitting: true
     });
 
-    console.log('===== 提交问卷 =====');
-    console.log('当前answers:', this.data.answers);
-    console.log('答案数量:', Object.keys(this.data.answers).length);
-
-    // 执行全量验证
     const validationResult = Validator.validateAll(this.data.questionnaire, this.data.answers);
-
-    console.log('验证结果:', validationResult);
 
     if (!validationResult.isValid) {
       const errorMessage = Validator.formatValidationMessages(validationResult);
-      console.log('验证失败，错误信息:', errorMessage);
       this.showError(errorMessage);
       this.setData({ isSubmitting: false });
       return;
     }
-
-    console.log('验证通过，准备提交到云函数');
 
     // 记录会话结束（简化版）
     const { logger } = this.data;
@@ -799,13 +518,8 @@ ${filledQuestionsInfo}
     if (logger) {
       // 正常完成，exitQuestionIndex为null，isExitEvent=false表示不是退出事件
       logger.logSessionEnd('completed', null, hasSkip, false);
-      
-      // 清除所有退出记录（因为已经完成）
-      StorageManager.clearLastExitInfo();
-      StorageManager.clearCurrentSessionId();
     }
 
-    // 调用云函数提交
     this.callSubmitCloudFunction();
   },
 
@@ -813,11 +527,7 @@ ${filledQuestionsInfo}
   callSubmitCloudFunction: function() {
     const questionnaireData = StorageManager.getCompleteQuestionnaireData();
 
-    console.log('从storage获取的问卷数据:', questionnaireData);
-    console.log('提交的答案详情:', questionnaireData.answers);
-
     if (!questionnaireData) {
-      console.error('提交数据异常：questionnaireData为空');
       this.showError('提交数据异常，请重试');
       this.setData({ isSubmitting: false });
       return;
@@ -829,197 +539,27 @@ ${filledQuestionsInfo}
         eventType: 'submit',
         record_id: questionnaireData.record_id,
         allAnswers: questionnaireData.answers,
-        group: this.data.group  // 传递分组信息
+        group: 'control'
       },
       success: (res) => {
-        console.log('云函数调用成功:', res.result);
         if (res.result.success) {
           // 标记为已提交
           this.setData({ isSubmitted: true });
 
-          // 提交成功，跳转到结果页面
           StorageManager.clearQuestionnaire();
           wx.redirectTo({
-            url: '/pages/result/result?recordId=' + questionnaireData.record_id
+            url: '/pages/result/result?recordId=' + questionnaireData.record_id + '&group=control'
           });
         } else {
-          console.error('云函数返回失败:', res.result.feedback);
           this.showError(res.result.feedback || '提交失败，请重试');
         }
         this.setData({ isSubmitting: false });
       },
       fail: (error) => {
-        console.error('云函数调用失败：', error);
         this.showError('网络异常，请检查后重试');
         this.setData({ isSubmitting: false });
       }
     });
-  },
-
-  // AI助手相关功能
-  toggleAIPanel: function() {
-    this.setData({
-      isAIPanelOpen: !this.data.isAIPanelOpen
-    });
-    this.updateLastInteractionTime();
-  },
-
-  onAIQuestionInput: function(e) {
-    this.setData({
-      aiQuestion: e.detail.value
-    });
-  },
-
-  onQuickQuestion: function(e) {
-    const question = e.currentTarget.dataset.question;
-    this.setData({
-      aiQuestion: question
-    });
-  },
-
-  sendAIQuestion: function() {
-    if (!this.data.aiQuestion.trim()) return;
-
-    const question = this.data.aiQuestion.trim();
-
-    // 记录LLM AI问答（简化版）
-    const { logger } = this.data;
-    if (logger) {
-      logger.logLLMInteraction('ai_question', null);
-    }
-
-    // 设置AI思考状态
-    this.setData({
-      isAIThinking: true
-    });
-
-    // 添加到对话记录
-    const newDialog = [...this.data.aiDialog, {
-      role: 'user',
-      content: question
-    }];
-
-    this.setData({
-      aiDialog: newDialog,
-      aiQuestion: ''
-    });
-
-    // 调用云函数获取AI回答
-    this.callAIQuestionCloudFunction(question);
-    this.updateLastInteractionTime();
-  },
-
-  callAIQuestionCloudFunction: function(question) {
-    const questionnaireData = StorageManager.getCompleteQuestionnaireData();
-    const currentQuestion = this.data.currentQuestion;
-
-    // 构建包含当前题目信息的提示词（完整版，超时已放宽）
-    let questionContext = '';
-    if (currentQuestion) {
-      // 传递完整的题目内容和选项信息
-      questionContext = `\n\n【当前题目信息】\n第${currentQuestion.id}题：${currentQuestion.content}`;
-      if (currentQuestion.options && currentQuestion.options.length > 0) {
-        questionContext += '\n选项：';
-        currentQuestion.options.forEach((opt, index) => {
-          questionContext += `\n${opt}`;
-        });
-      }
-    }
-
-    const fullQuestion = question + questionContext;
-
-    wx.cloud.callFunction({
-      name: 'interact',
-      data: {
-        eventType: 'aiQuestion',
-        record_id: questionnaireData?.record_id || 'temp',
-        aiQuestion: fullQuestion,
-        group: this.data.group  // 传递分组信息
-      },
-      success: (res) => {
-        // 关闭思考状态
-        this.setData({
-          isAIThinking: false
-        });
-
-        if (res.result.success) {
-          const aiAnswer = res.result.aiAnswer;
-          const updatedDialog = [...this.data.aiDialog, {
-            role: 'assistant',
-            content: aiAnswer
-          }];
-
-          this.setData({
-            aiDialog: updatedDialog
-          });
-        } else {
-          this.showAIFallback(question);
-        }
-      },
-      fail: (error) => {
-        console.error('AI问答失败：', error);
-        // 关闭思考状态
-        this.setData({
-          isAIThinking: false
-        });
-        this.showAIFallback(question);
-      }
-    });
-  },
-
-  showAIFallback: function(question) {
-    // 关闭思考状态
-    this.setData({
-      isAIThinking: false
-    });
-
-    const fallbackAnswer = LLMFallback.getFallbackResponse('aiQuestion', { question });
-    const updatedDialog = [...this.data.aiDialog, {
-      role: 'assistant',
-      content: fallbackAnswer.aiAnswer
-    }];
-
-    this.setData({
-      aiDialog: updatedDialog
-    });
-  },
-
-  // 定时器相关功能
-  startEncouragementTimer: function() {
-    const timer = setInterval(() => {
-      this.checkForEncouragement();
-    }, 10000); // 每10秒检查一次
-    
-    this.setData({
-      encouragementTimer: timer
-    });
-  },
-
-  checkForEncouragement: function() {
-    const now = Date.now();
-    const lastInteraction = this.data.lastInteractionTime;
-    
-    if (now - lastInteraction > 30000) { // 30秒无操作
-      const encouragement = LLMFallback.generateEncouragement(this.data.progress, this.data.totalQuestions);
-      this.setData({
-        aiBubbleMessage: encouragement
-      });
-    }
-  },
-
-  updateLastInteractionTime: function() {
-    this.setData({
-      lastInteractionTime: Date.now()
-    });
-  },
-
-  clearTimers: function() {
-    if (this.data.encouragementTimer) {
-      clearInterval(this.data.encouragementTimer);
-    }
-    if (this.data.validationTimer) {
-      clearTimeout(this.data.validationTimer);
-    }
   },
 
   // 工具函数
@@ -1027,120 +567,11 @@ ${filledQuestionsInfo}
     this.setData({
       errorMessage: message
     });
-    
+
     setTimeout(() => {
       this.setData({ errorMessage: '' });
     }, 5000);
-  },
-
-  preventTouchMove: function() {
-    // 阻止触摸移动，用于AI面板
-    return;
-  },
-
-  // AI图标拖动功能
-  handleTouchStart: function(e) {
-    console.log('Touch Start');
-    this.dragging = true;
-    this.isClick = true;  // 初始认为是点击
-    this.touchStartTime = Date.now();  // 记录触摸开始时间
-    this.touchStartTime2 = Date.now();  // 用于记录move开始时间
-    this.startX = e.touches[0].clientX;
-    this.startY = e.touches[0].clientY;
-    this.startRight = this.data.aiIconRight;
-    this.startBottom = this.data.aiIconBottom;
-  },
-
-  handleTouchMove: function(e) {
-    if (!this.dragging) return;
-
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-
-    // 检查是否第一次move事件，如果是，记录时间
-    if (!this.firstMoveTime) {
-      this.firstMoveTime = Date.now();
-    }
-
-    const timeDiff = this.firstMoveTime - this.touchStartTime;
-
-    // 如果触摸后100ms内开始移动，认为是拖动而不是点击
-    if (timeDiff < 100) {
-      this.isClick = false;
-      console.log('Marked as drag (time based)', timeDiff);
-    }
-
-    const deltaX = this.startX - currentX;  // right值需要反方向计算
-    const deltaY = this.startY - currentY;  // bottom值需要反方向计算
-
-    // 使用缓存的屏幕尺寸（在onLoad时初始化）
-    if (!this.screenInfo) {
-      this.screenInfo = wx.getSystemInfoSync();
-    }
-    const screenWidth = this.screenInfo.windowWidth * 2;  // 转换为rpx
-    const screenHeight = this.screenInfo.windowHeight * 2;  // 转换为rpx
-
-    // 计算新的位置
-    let newRight = this.startRight + deltaX;
-    let newBottom = this.startBottom + deltaY;
-
-    // 限制边界：图标宽120rpx，高120rpx
-    const minRight = 0;
-    const maxRight = screenWidth - 120;
-    const minBottom = 0;
-    const maxBottom = screenHeight - 120;
-
-    // 确保不超出边界
-    newRight = Math.max(minRight, Math.min(maxRight, newRight));
-    newBottom = Math.max(minBottom, Math.min(maxBottom, newBottom));
-
-    this.setData({
-      aiIconRight: newRight,
-      aiIconBottom: newBottom
-    });
-  },
-
-  handleTouchEnd: function(e) {
-    console.log('Touch End, isClick:', this.isClick);
-    this.dragging = false;
-    this.firstMoveTime = null;  // 重置首次移动时间
-
-    // 使用缓存的屏幕尺寸
-    if (!this.screenInfo) {
-      this.screenInfo = wx.getSystemInfoSync();
-    }
-    const screenWidth = this.screenInfo.windowWidth * 2;
-    const screenHeight = this.screenInfo.windowHeight * 2;
-
-    const iconWidth = 120;
-    const iconHeight = 120;
-
-    // 判断更靠近哪个边缘（只考虑右边缘和底部边缘）
-    const distanceToRight = this.data.aiIconRight;
-    const distanceToBottom = this.data.aiIconBottom;
-
-    // 比较距离，吸附到更近的边缘
-    if (distanceToRight <= distanceToBottom) {
-      // 吸附到右边缘
-      this.setData({ aiIconRight: 0 });
-    } else {
-      // 吸附到底部
-      this.setData({ aiIconBottom: 0 });
-    }
-  },
-
-  // AI图标点击事件
-  handleIconClick: function(e) {
-    console.log('Click event, isClick:', this.isClick);
-    // 只在没有拖动的情况下才触发点击
-    if (this.isClick) {
-      console.log('触发AI面板展开');
-      this.toggleAIPanel();
-    } else {
-      console.log('这是拖动，不触发点击');
-    }
-  },
+  }
 });
 
-// 导出问卷模板供其他页面使用
 module.exports.QUESTIONNAIRE_TEMPLATE = QUESTIONNAIRE_TEMPLATE;

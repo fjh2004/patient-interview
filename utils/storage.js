@@ -3,7 +3,9 @@
 
 const STORAGE_KEYS = {
   QUESTIONNAIRE: 'diabetes_questionnaire',
-  USER_INFO: 'user_basic_info'
+  USER_INFO: 'user_basic_info',
+  LAST_SESSION: 'last_session_info',  // 新增：上次会话信息
+  SESSION_ID: 'current_session_id'    // 新增：当前会话ID
 };
 
 class StorageManager {
@@ -177,6 +179,94 @@ class StorageManager {
       start_time: data.startTime,
       submit_time: new Date().getTime()
     };
+  }
+
+  // ==================== 会话管理 ====================
+
+  // 保存当前会话ID
+  static saveCurrentSessionId(sessionId) {
+    try {
+      wx.setStorageSync(STORAGE_KEYS.SESSION_ID, sessionId);
+      return true;
+    } catch (error) {
+      console.error('保存会话ID失败：', error);
+      return false;
+    }
+  }
+
+  // 获取当前会话ID
+  static getCurrentSessionId() {
+    try {
+      return wx.getStorageSync(STORAGE_KEYS.SESSION_ID);
+    } catch (error) {
+      console.error('获取会话ID失败：', error);
+      return null;
+    }
+  }
+
+  // 清除当前会话ID
+  static clearCurrentSessionId() {
+    try {
+      wx.removeStorageSync(STORAGE_KEYS.SESSION_ID);
+      return true;
+    } catch (error) {
+      console.error('清除会话ID失败：', error);
+      return false;
+    }
+  }
+
+  // 保存上次退出信息
+  static saveLastExitInfo(info) {
+    try {
+      wx.setStorageSync(STORAGE_KEYS.LAST_SESSION, {
+        ...info,
+        timestamp: new Date().getTime()
+      });
+      return true;
+    } catch (error) {
+      console.error('保存退出信息失败：', error);
+      return false;
+    }
+  }
+
+  // 获取上次退出信息
+  static getLastExitInfo() {
+    try {
+      const info = wx.getStorageSync(STORAGE_KEYS.LAST_SESSION);
+      if (info && info.timestamp) {
+        // 检查是否过期（24小时）
+        const now = new Date().getTime();
+        if (now - info.timestamp > 24 * 60 * 60 * 1000) {
+          this.clearLastExitInfo();
+          return null;
+        }
+        return info;
+      }
+      return null;
+    } catch (error) {
+      console.error('获取退出信息失败：', error);
+      return null;
+    }
+  }
+
+  // 清除上次退出信息（用户返回后调用）
+  static clearLastExitInfo() {
+    try {
+      wx.removeStorageSync(STORAGE_KEYS.LAST_SESSION);
+      return true;
+    } catch (error) {
+      console.error('清除退出信息失败：', error);
+      return false;
+    }
+  }
+
+  // 检查是否有未完成的会话
+  static hasUnfinishedSession() {
+    const lastExit = this.getLastExitInfo();
+    const currentSessionId = this.getCurrentSessionId();
+    
+    // 如果有退出信息且没有当前会话ID，说明有未完成的会话
+    return lastExit && !currentSessionId;
   }
 }
 
