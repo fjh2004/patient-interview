@@ -3,7 +3,8 @@
     "pages/questionnaire/questionnaire",
     "pages/questionnaire/control",
     "pages/result/result",
-    "pages/explain/explain"
+    "pages/explain/explain",
+    "pages/user-feedback/user-feedback"
   ],
   "window": {
     "navigationBarTitleText": "健康问卷",

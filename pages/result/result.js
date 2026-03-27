@@ -3,6 +3,9 @@ const StorageManager = require('../../utils/storage.js');
 
 Page({
   data: {
+    // 用户分组
+    group: '',
+    
     // 用户基本信息
     userInfo: {
       name: '',
@@ -29,15 +32,28 @@ Page({
 
   // 页面加载
   onLoad: function(options) {
+    console.log('[结果页面] 加载参数:', options);
+    
+    // 保存分组信息
+    this.setData({
+      group: options.group || '',
+      recordId: options.recordId || ''
+    });
+    
     if (options.recordId) {
-      this.setData({
-        recordId: options.recordId
-      });
       this.loadResultData(options.recordId);
     } else {
       // 如果没有recordId，尝试从本地缓存加载最后一次提交的数据
       this.loadFromLocalStorage();
     }
+  },
+
+  // 页面显示
+  onShow: function() {
+    // 延迟显示用户体验反馈提示框
+    setTimeout(() => {
+      this.showUserFeedbackPrompt();
+    }, 1500); // 1.5秒后显示，让用户先看到结果
   },
 
   // 从本地缓存加载数据
@@ -298,6 +314,60 @@ Page({
     advice += '如有不适，请及时咨询专业医生。';
 
     return advice;
+  },
+
+  // 显示用户体验反馈提示框
+  showUserFeedbackPrompt: function() {
+    const { group, recordId } = this.data;
+    
+    if (!group || !recordId) {
+      console.log('[用户反馈] 缺少必要参数，不显示提示框');
+      return;
+    }
+
+    // 检查是否今天已经提示过
+    const today = new Date().toDateString();
+    const lastPromptDate = wx.getStorageSync('user_feedback_prompt_date');
+    
+    if (lastPromptDate === today) {
+      console.log('[用户反馈] 今天已提示过，不再显示');
+      return;
+    }
+
+    // 显示提示框
+    wx.showModal({
+      title: '感谢参与毕业设计问卷填写',
+      content: '为了帮助改进系统，诚邀您花1分钟分享填写体验。\n\n您的反馈对我们非常重要！',
+      confirmText: '参与反馈',
+      cancelText: '稍后再说',
+      success: (res) => {
+        if (res.confirm) {
+          console.log('[用户反馈] 用户选择参与反馈');
+          
+          // 记录提示日期
+          wx.setStorageSync('user_feedback_prompt_date', today);
+          
+          // 获取用户ID（从本地存储）
+          let userId = wx.getStorageSync('user_id');
+          if (!userId) {
+            userId = 'unknown_user_' + Date.now();
+          }
+          
+          // 获取会话ID（从本地存储）
+          let sessionId = wx.getStorageSync('current_session_id');
+          
+          // 跳转到用户反馈页面
+          wx.navigateTo({
+            url: `/pages/user-feedback/user-feedback?group=${group}&recordId=${recordId}&user_id=${userId}${sessionId ? '&session_id=' + sessionId : ''}`
+          });
+        } else {
+          console.log('[用户反馈] 用户选择稍后再说');
+        }
+      },
+      fail: (err) => {
+        console.error('[用户反馈] 显示提示框失败:', err);
+      }
+    });
   },
 
   // 调用AI生成健康信息摘要

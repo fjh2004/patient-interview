@@ -1,0 +1,124 @@
+<!--pages/user-feedback/user-feedback.wxml-->
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="header">
+    <text class="title">用户体验反馈</text>
+    <text class="subtitle">感谢您参与毕业设计问卷填写！请花2分钟分享您的体验</text>
+  </view>
+
+  <!-- 问题1：满意度评分 -->
+  <view class="question-section">
+    <view class="question-title">1. 请对本次问卷填写体验进行打分（1-10分）</view>
+    <view class="score-container">
+      <view class="score-labels">
+        <text class="score-label">1分（最低）</text>
+        <text class="score-label">10分（最高）</text>
+      </view>
+      <view class="score-buttons">
+        <block wx:for="{{[1,2,3,4,5,6,7,8,9,10]}}" wx:key="index">
+          <button 
+            class="score-button {{satisfactionScore === item ? 'selected' : ''}}"
+            data-score="{{item}}"
+            bindtap="selectSatisfactionScore"
+          >
+            {{item}}
+          </button>
+        </block>
+      </view>
+      <view class="current-score" wx:if="{{satisfactionScore > 0}}">
+        当前选择：<text class="score-value">{{satisfactionScore}}分</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 问题2：推荐意愿 -->
+  <view class="question-section">
+    <view class="question-title">2. 您是否愿意向他人推荐这种填写模式的问卷？</view>
+    <view class="options-container">
+      <block wx:for="{{recommendationOptions}}" wx:key="index">
+        <view 
+          class="option-item {{recommendationLevel === item.value ? 'selected' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectRecommendationLevel"
+        >
+          <view class="option-radio">
+            <view class="radio-inner" wx:if="{{recommendationLevel === item.value}}"></view>
+          </view>
+          <text class="option-text">{{item.label}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 问题3：AI功能比较（区分实验组/对照组） -->
+  <view class="question-section">
+    <view class="question-title">
+      3. 
+      <text wx:if="{{group === 'control'}}">如果同样的问卷增加AI智能引导功能，您认为：</text>
+      <text wx:if="{{group === 'experimental'}}">如果同样的问卷删除AI智能引导功能，您认为：</text>
+    </view>
+    <view class="options-container">
+      <block wx:for="{{group === 'control' ? aiComparisonControlOptions : aiComparisonExpOptions}}" wx:key="index">
+        <view 
+          class="option-item {{aiComparison === item.value ? 'selected' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectAiComparison"
+        >
+          <view class="option-radio">
+            <view class="radio-inner" wx:if="{{aiComparison === item.value}}"></view>
+          </view>
+          <text class="option-text">{{item.label}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 问题4：AI干预接受度（仅实验组） -->
+  <view class="question-section" wx:if="{{group === 'experimental'}}">
+    <view class="question-title">4. 您对AI辅助填写问卷的接受程度是：</view>
+    <view class="options-container">
+      <block wx:for="{{aiAcceptanceOptions}}" wx:key="index">
+        <view 
+          class="option-item {{aiAcceptance === item.value ? 'selected' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectAiAcceptance"
+        >
+          <view class="option-radio">
+            <view class="radio-inner" wx:if="{{aiAcceptance === item.value}}"></view>
+          </view>
+          <text class="option-text">{{item.label}}</text>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-message" wx:if="{{errorMessage}}">
+    {{errorMessage}}
+  </view>
+
+  <!-- 提交按钮 -->
+  <view class="button-container">
+    <button 
+      class="submit-button" 
+      bindtap="submitFeedback"
+      disabled="{{isSubmitting}}"
+      loading="{{isSubmitting}}"
+    >
+      {{isSubmitting ? '提交中...' : '提交反馈'}}
+    </button>
+    
+    <button 
+      class="skip-button" 
+      bindtap="skipFeedback"
+      disabled="{{isSubmitting}}"
+    >
+      跳过反馈
+    </button>
+  </view>
+
+  <!-- 进度提示 -->
+  <view class="progress-hint">
+    <text>您的反馈将帮助我们改进糖尿病管理工具，感谢您的宝贵时间！</text>
+  </view>
+</view>

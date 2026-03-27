@@ -5,11 +5,18 @@
     "miniprogram": {
       "list": [
         {
-          "name": "pages/questionnaire/control",
-          "pathName": "pages/questionnaire/control",
+          "name": "反馈页面",
+          "pathName": "pages/user-feedback/user-feedback",
           "query": "",
           "scene": null,
           "launchMode": "default"
+        },
+        {
+          "name": "pages/questionnaire/control",
+          "pathName": "pages/questionnaire/control",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
         },
         {
           "name": "pages/questionnaire/questionnaire",

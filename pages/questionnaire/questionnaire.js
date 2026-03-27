@@ -840,7 +840,7 @@ ${filledQuestionsInfo}
           // 提交成功，跳转到结果页面
           StorageManager.clearQuestionnaire();
           wx.redirectTo({
-            url: '/pages/result/result?recordId=' + questionnaireData.record_id
+            url: '/pages/result/result?recordId=' + questionnaireData.record_id + '&group=experimental'
           });
         } else {
           console.error('云函数返回失败:', res.result.feedback);
